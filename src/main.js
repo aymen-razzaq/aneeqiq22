@@ -1,6 +1,7 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, onSnapshot, serverTimestamp, getDocFromServer, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { initializeFirestore, getFirestore, collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, onSnapshot, serverTimestamp, getDocFromServer, getDoc, setDoc } from 'firebase/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
 import defaultShopLogo from './assets/images/default_shop_logo_1795530726308.jpg';
 import defaultShopHero from './assets/images/default_shop_hero_1795530727876.jpg';
 
@@ -89,17 +90,6 @@ window.approveAllProductPhotos = (...args) => approveAllProductPhotos(...args);
 window.approveShopPhoto = (...args) => approveShopPhoto(...args);
 window.rejectShopPhoto = (...args) => rejectShopPhoto(...args);
 
-const firebaseConfig = {
-  "projectId": "gen-lang-client-0293781004",
-  "appId": "1:1002839908496:web:52aa50ad60d3aa92603815",
-  "apiKey": "AIzaSyB_mOuYbRx3IHAduhIXChdXmfPM_9R4ppo",
-  "authDomain": "gen-lang-client-0293781004.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-1243ade3-2460-42a3-a0ef-abfd1118c9d3",
-  "storageBucket": "gen-lang-client-0293781004.firebasestorage.app",
-  "messagingSenderId": "1002839908496",
-  "measurementId": ""
-};
-
 // INITIALIZATION
 const loader = document.getElementById('app-loader');
 const hideLoader = () => {
@@ -112,8 +102,15 @@ const hideLoader = () => {
 let app, db, auth;
 try {
     app = initializeApp(firebaseConfig);
-    db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-    auth = getAuth();
+    try {
+        db = initializeFirestore(app, {
+            experimentalForceLongPolling: true,
+            useFetchStreams: false,
+        }, firebaseConfig.firestoreDatabaseId);
+    } catch (fsErr) {
+        db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    }
+    auth = getAuth(app);
 } catch (e) {
     console.error("Firebase Init Error:", e);
     const loaderText = document.querySelector('#app-loader p');
@@ -145,7 +142,7 @@ async function testConnection() {
         }
     }
 }
-testConnection();
+const connectionCheckPromise = testConnection();
 
 // Timeout to hide loader anyway if auth takes too long
 setTimeout(hideLoader, 5000);
@@ -546,10 +543,27 @@ let reviewsUnsubscribe = null;
 const shopSettingsOverrides = {};
 const PRODUCT_CACHE = {};
 const WHATSAPP_REPORT_NUMBER = '9647759530163';
+let productFeedUnsubscribe = null;
+let shopProductsUnsubscribe = null;
+let adminInventoryUnsubscribe = null;
+let masterOrdersUnsubscribe = null;
+let toastHideTimer = null;
+let currentBase64Images = []; // Array for multiple photos
+let currentProductTags = []; // Interactive tags for new product
+let currentEditProductTags = []; // Interactive tags for editing product
+let imageCropQueue = []; // Queue for multiple image cropping
+let currentStoreLogo = null;
+let currentStoreHero = null;
+let currentMasterShopLogo = null;
+let currentMasterHero = null;
+let cropperInstance = null;
+let cropperType = null; // 'product', 'logo', 'hero'
+const EYE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const EYE_OFF_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
 
 // INIT
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log("DOM Content Loaded. Initializing app...");
+async function initApp() {
+    console.log("Initializing aneeq app...");
     try {
         // 1. Initialize real-time listeners
         initSettingsListener();
@@ -647,7 +661,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Ensure loader is hidden even if init has issues
         setTimeout(hideLoader, 1000);
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
 // LANGUAGE
 function setLanguage(lang) {
@@ -985,9 +1005,9 @@ function updateStaticTranslations() {
         if (photoHint) photoHint.innerText = t.photoApprovalHint;
         updateReportModalTranslations();
         
-        // Toast
+        // Toast (only reset default text when hidden)
         const toast = document.getElementById('toast');
-        if (toast) toast.innerText = t.toastSent;
+        if (toast && toast.classList.contains('hidden')) toast.innerText = t.toastSent;
 
         // Edit Modal
         const editModal = document.getElementById('product-edit-modal');
@@ -1120,8 +1140,8 @@ function getProductAllImages(p) {
 
 function getProductPhotoStatuses(p) {
     const imgs = getProductAllImages(p);
-    if (Array.isArray(p.photoStatuses) && p.photoStatuses.length === imgs.length) {
-        return p.photoStatuses;
+    if (Array.isArray(p.photoStatuses)) {
+        return imgs.map((_, idx) => p.photoStatuses[idx] || p.photoStatus || 'pending');
     }
     if (p.photoStatus === 'pending' || p.photoStatus === 'rejected') {
         return imgs.map(() => p.photoStatus);
@@ -1352,7 +1372,7 @@ function filterByCategory(cat) {
     }
 }
 
-let productFeedUnsubscribe = null;
+// productFeedUnsubscribe declared in STATE block above
 
 function renderProductRatingInline(productId) {
     const summary = getProductRatingSummary(productId);
@@ -1522,7 +1542,7 @@ function openShop(shopId) {
     renderProducts(shopId);
 }
 
-let shopProductsUnsubscribe = null;
+// shopProductsUnsubscribe declared in STATE block above
 
 function renderProducts(shopId) {
     if (!db) return;
@@ -2084,7 +2104,6 @@ async function submitOrder() {
     }
 }
 
-let toastHideTimer = null;
 function showToast(message) {
     const el = document.getElementById('toast');
     if (!el) return;
@@ -2095,9 +2114,6 @@ function showToast(message) {
         el.classList.add('hidden');
     }, 4000);
 }
-
-const EYE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
-const EYE_OFF_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
 
 function togglePass(id) {
     const input = document.getElementById(id);
@@ -2425,6 +2441,7 @@ function updateProfileUI() {
 async function refreshUserProfile() {
     if (!db || !loggedInUser || !loggedInUser.phone) return;
     try {
+        await connectionCheckPromise;
         const userDoc = await getDoc(doc(db, "users", loggedInUser.phone));
         if (userDoc.exists()) {
             const data = userDoc.data();
@@ -2453,7 +2470,12 @@ async function refreshUserProfile() {
             updateProfileUI();
         }
     } catch (e) {
-        console.error("Error refreshing user profile:", e);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (e?.code === 'unavailable' || msg.includes('offline')) {
+            console.warn("Using cached profile while Firestore reconnects.");
+        } else {
+            console.error("Error refreshing user profile:", e);
+        }
     }
 }
 
@@ -2498,7 +2520,7 @@ function logout() {
     document.getElementById('login-pass').value = '';
 }
 
-let adminInventoryUnsubscribe = null;
+// adminInventoryUnsubscribe declared in STATE block above
 
 function renderAdminInventory() {
     if (!db) return;
@@ -2582,17 +2604,7 @@ async function compressImage(base64Str, maxWidth = 1024, quality = 0.6) {
     });
 }
 
-let currentBase64Images = []; // Array for multiple photos
-let currentProductTags = []; // Interactive tags for new product
-let currentEditProductTags = []; // Interactive tags for editing product
-let imageCropQueue = []; // Queue for multiple image cropping
-let currentStoreLogo = null;
-let currentStoreHero = null;
-let currentMasterShopLogo = null;
-let currentMasterHero = null;
-
-let cropperInstance = null;
-let cropperType = null; // 'product', 'logo', 'hero'
+// Upload/cropper state declared in STATE block above
 
 function openCropper(imageSrc, type) {
     cropperType = type;
@@ -2630,7 +2642,7 @@ function openCropper(imageSrc, type) {
     });
 }
 
-function closeCropModal() {
+function closeCropModal(clearQueue = true) {
     const modal = document.getElementById('crop-modal');
     if (modal) {
         modal.classList.add('hidden');
@@ -2639,6 +2651,9 @@ function closeCropModal() {
     if (cropperInstance) {
         cropperInstance.destroy();
         cropperInstance = null;
+    }
+    if (clearQueue) {
+        imageCropQueue = [];
     }
 }
 
@@ -2656,16 +2671,24 @@ function rotateCropper(degree) {
 
 async function applyCrop() {
     if (!cropperInstance) return;
-    
-    const canvas = cropperInstance.getCroppedCanvas();
-    const croppedImage = canvas.toDataURL('image/jpeg', 0.8);
+
+    const isHero = cropperType === 'hero' || cropperType === 'masterHero';
+    const canvas = cropperInstance.getCroppedCanvas({
+        maxWidth: isHero ? 1200 : 720,
+        maxHeight: isHero ? 720 : 720,
+        fillColor: '#FFFFFF',
+    });
+    let croppedImage = canvas.toDataURL('image/jpeg', 0.72);
+    if (croppedImage.length > 120000) {
+        croppedImage = await compressImage(croppedImage, isHero ? 900 : 540, 0.5);
+    }
     
     if (cropperType === 'product') {
         currentBase64Images.push(croppedImage);
         renderProductPreviews();
-        closeCropModal();
-        // Check if more images in queue
+        closeCropModal(false);
         processNextCrop();
+        return;
     } else if (cropperType === 'logo') {
         currentStoreLogo = croppedImage;
         const preview = document.getElementById('logo-preview-container');
@@ -2674,6 +2697,7 @@ async function applyCrop() {
         }
         const removeBtn = document.getElementById('remove-logo-btn');
         if (removeBtn) removeBtn.classList.remove('hidden');
+        showToast(currentLang === 'ar' ? "تم تجهيز الشعار! اضغط 'تحديث واجهة المتجر' لإرساله للموافقة." : "Logo ready! Click 'Update Store Front' to send for approval.");
     } else if (cropperType === 'hero') {
         currentStoreHero = croppedImage;
         const preview = document.getElementById('hero-preview-container');
@@ -2682,6 +2706,7 @@ async function applyCrop() {
         }
         const removeBtn = document.getElementById('remove-hero-btn');
         if (removeBtn) removeBtn.classList.remove('hidden');
+        showToast(currentLang === 'ar' ? "تم تجهيز الغلاف! اضغط 'تحديث واجهة المتجر' لإرساله للموافقة." : "Banner ready! Click 'Update Store Front' to send for approval.");
     } else if (cropperType === 'masterLogo') {
         currentMasterShopLogo = croppedImage;
         const img = document.getElementById('m-shop-logo-img');
@@ -2692,7 +2717,7 @@ async function applyCrop() {
         if (img) img.src = croppedImage;
     }
     
-    closeCropModal();
+    closeCropModal(false);
 }
 
 function removeStoreImage(type) {
@@ -2724,6 +2749,7 @@ async function previewStoreImage(input, type) {
         };
         reader.readAsDataURL(file);
     }
+    input.value = '';
 }
 
 async function saveStoreSettings() {
@@ -2766,16 +2792,17 @@ async function saveStoreSettings() {
             hasPendingPhotoUpload = true;
         }
         
-        // Update user profile in Firestore
+        // Save store settings first so pending photos never get blocked by user doc updates
+        await setDoc(doc(db, "shop_settings", loggedInShopId), updateData, { merge: true });
+
+        // Update user profile in Firestore safely (no undefined values)
         const oldPhone = loggedInUser.phone;
-        const userUpdates = {
-            name: newName || loggedInUser.name,
-            password: newPass || loggedInUser.password,
-            shopId: loggedInShopId
-        };
+        const userUpdates = { shopId: loggedInShopId };
+        if (newName || loggedInUser.name) userUpdates.name = newName || loggedInUser.name;
+        if (newPass || loggedInUser.password) userUpdates.password = newPass || loggedInUser.password;
         
-        // If phone changed, it's a bit more complex since ID is the phone
-        if (newPhone !== oldPhone && newPhone.length >= 10) {
+        // If phone changed, transfer data cleanly
+        if (oldPhone && newPhone !== oldPhone && newPhone.length >= 10) {
              const newUserRef = doc(db, "users", newPhone);
              const newUserDoc = await getDoc(newUserRef);
              if (newUserDoc.exists()) {
@@ -2783,19 +2810,16 @@ async function saveStoreSettings() {
                  throw new Error("Phone occupied");
              }
              
-             // Transfer data to new phone doc
              const fullNewUserData = { ...loggedInUser, ...userUpdates, phone: newPhone };
              await setDoc(newUserRef, fullNewUserData);
              await deleteDoc(doc(db, "users", oldPhone));
              loggedInUser = fullNewUserData;
-        } else {
-             await updateDoc(doc(db, "users", oldPhone), userUpdates);
+        } else if (oldPhone) {
+             await setDoc(doc(db, "users", oldPhone), userUpdates, { merge: true });
              loggedInUser = { ...loggedInUser, ...userUpdates };
         }
         
         localStorage.setItem('aneeq_user', JSON.stringify(loggedInUser));
-
-        await setDoc(doc(db, "shop_settings", loggedInShopId), updateData, { merge: true });
         
         // Update local cache immediately for responsiveness
         shopSettingsOverrides[loggedInShopId] = {
@@ -2810,7 +2834,7 @@ async function saveStoreSettings() {
             if (currentStoreLogo === "") SHOPS[shopIdx].logo = defaultShopLogo;
             if (currentStoreHero === "") SHOPS[shopIdx].hero = defaultShopHero;
             SHOPS[shopIdx].phone = loggedInUser.phone;
-            SHOPS[shopIdx].pass = loggedInUser.password;
+            if (loggedInUser.password) SHOPS[shopIdx].pass = loggedInUser.password;
         }
 
         const t = TRANSLATIONS[currentLang];
@@ -2821,10 +2845,11 @@ async function saveStoreSettings() {
         currentStoreHero = null;
         
         updateProfileUI();
+        updateApprovalsBadge();
     } catch (e) {
         if (e.message !== "Phone occupied") {
             handleFirestoreError(e, OperationType.WRITE, 'shop_settings');
-            showToast("Error saving settings");
+            showToast(currentLang === 'ar' ? 'حدث خطأ أثناء حفظ الإعدادات' : "Error saving settings");
         }
     } finally {
         btn.disabled = false;
@@ -2841,7 +2866,7 @@ async function previewProductImage(input) {
             imageCropQueue.push(file);
         }
         
-        if (imageCropQueue.length > 0 && !document.getElementById('crop-modal').classList.contains('hidden') === false) {
+        if (imageCropQueue.length > 0 && document.getElementById('crop-modal')?.classList.contains('hidden')) {
             processNextCrop();
         }
     }
@@ -2918,20 +2943,28 @@ function renderTagPills(type) {
 async function addNewProduct() {
     if (!db) return;
     const t = TRANSLATIONS[currentLang];
-    const name = document.getElementById('p-name').value;
+    if (!loggedInShopId) return showToast(t.accessDenied);
+    const name = document.getElementById('p-name').value.trim();
     const cat = document.getElementById('p-cat').value;
     const price = document.getElementById('p-price').value;
-    const desc = document.getElementById('p-desc').value;
-    const imgs = currentBase64Images;
+    const desc = document.getElementById('p-desc').value.trim();
+    const imgs = [...currentBase64Images];
     
     if(!name || !price || imgs.length === 0) return showToast(t.fillFields);
+
+    const pubBtn = document.querySelector('#seller-add-product-card button[onclick="addNewProduct()"]');
+    const origBtnText = pubBtn ? pubBtn.innerText : '';
+    if (pubBtn) {
+        pubBtn.disabled = true;
+        pubBtn.innerText = currentLang === 'ar' ? 'جاري النشر...' : 'Publishing...';
+    }
     
     const productData = {
         name,
         category: cat || 'General',
         price: Number(price),
         description: desc || "",
-        tags: currentProductTags,
+        tags: [...currentProductTags],
         image: imgs[0], // primary image
         images: imgs,   // full gallery
         photoStatuses: imgs.map(() => 'pending'),
@@ -2940,7 +2973,12 @@ async function addNewProduct() {
         createdAt: serverTimestamp()
     };
     try {
-        await addDoc(collection(db, "inventory"), productData);
+        const docRef = await addDoc(collection(db, "inventory"), productData);
+        const createdItem = { ...productData, id: docRef.id };
+        PRODUCT_CACHE[docRef.id] = createdItem;
+        if (!MARKET_PRODUCTS.some(p => p.id === docRef.id)) {
+            MARKET_PRODUCTS.unshift(createdItem);
+        }
         document.getElementById('p-name').value = '';
         document.getElementById('p-cat').value = '';
         document.getElementById('p-price').value = '';
@@ -2950,17 +2988,32 @@ async function addNewProduct() {
         renderTagPills('new');
         document.getElementById('product-preview').innerHTML = '';
         currentBase64Images = [];
+        updateApprovalsBadge();
         showToast(t.pendingApprovalMsg);
     } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, "inventory");
+        showToast(currentLang === 'ar' ? 'تعذر حفظ المنتج. يرجى تجربة صور أصغر.' : "Could not save product. Please try smaller photos.");
+    } finally {
+        if (pubBtn) {
+            pubBtn.disabled = false;
+            pubBtn.innerText = origBtnText || t.publishProduct;
+        }
     }
 }
 
 async function deleteProduct(productId) {
-    const t = TRANSLATIONS[currentLang];
+    if (!db) return;
     if(!confirm(currentLang === 'ar' ? 'هل أنت متأكد من حذف هذا المنتج؟' : "Are you sure you want to delete this product?")) return;
     try {
         await deleteDoc(doc(db, "inventory", productId));
+        delete PRODUCT_CACHE[productId];
+        MARKET_PRODUCTS = MARKET_PRODUCTS.filter(p => p.id !== productId);
+        updateApprovalsBadge();
+        if (isMasterLoggedIn && currentMasterTab === 'approvals') {
+            renderMasterApprovals();
+        }
+        initMarketplace();
+        renderFilteredProducts();
     } catch (error) {
         handleFirestoreError(error, OperationType.DELETE, `inventory/${productId}`);
     }
@@ -3115,13 +3168,16 @@ function handleMasterLogin() {
         localStorage.setItem('aneeq_master_session', 'true');
         document.getElementById('master-login').classList.add('hidden');
         document.getElementById('master-dashboard').classList.remove('hidden');
+        ensureProductFeedListener();
         renderMasterOrders();
+        updateApprovalsBadge();
+        if (currentMasterTab === 'approvals') renderMasterApprovals();
     } else {
         showToast(t.accessDenied);
     }
 }
 
-let masterOrdersUnsubscribe = null;
+// masterOrdersUnsubscribe declared in STATE block above
 function renderMasterOrders() {
     if (!db) return;
     if (masterOrdersUnsubscribe) masterOrdersUnsubscribe();
@@ -3222,7 +3278,37 @@ function switchMasterTab(tab) {
 
     if (tab === 'orders') renderMasterOrders();
     else if (tab === 'shops') renderMasterShops();
-    else if (tab === 'approvals') renderMasterApprovals();
+    else if (tab === 'approvals') {
+        ensureProductFeedListener();
+        refreshMasterApprovalsData().then(() => renderMasterApprovals());
+    }
+}
+
+async function refreshMasterApprovalsData() {
+    if (!db) return;
+    try {
+        const [invSnap, settingsSnap] = await Promise.all([
+            getDocs(collection(db, "inventory")),
+            getDocs(collection(db, "shop_settings"))
+        ]);
+        const items = [];
+        invSnap.forEach(docSnap => {
+            const p = { ...docSnap.data(), id: docSnap.id };
+            PRODUCT_CACHE[p.id] = p;
+            items.push(p);
+        });
+        MARKET_PRODUCTS = items;
+        settingsSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            const sId = data.shopId || docSnap.id;
+            if (sId) {
+                shopSettingsOverrides[sId] = { ...data, shopId: sId };
+            }
+        });
+        updateApprovalsBadge();
+    } catch (error) {
+        handleFirestoreError(error, OperationType.GET, "inventory/approvals");
+    }
 }
 
 function setApprovalsFilter(filter) {
@@ -3235,8 +3321,8 @@ function setApprovalsFilter(filter) {
 function getPendingApprovalCount() {
     let count = 0;
     Object.values(shopSettingsOverrides).forEach(s => {
-        if (s.pendingLogo && s.logoStatus === 'pending') count += 1;
-        if (s.pendingHero && s.heroStatus === 'pending') count += 1;
+        if (s.pendingLogo && s.logoStatus !== 'rejected') count += 1;
+        if (s.pendingHero && s.heroStatus !== 'rejected') count += 1;
     });
     MARKET_PRODUCTS.forEach(p => {
         const statuses = getProductPhotoStatuses(p);
@@ -3267,16 +3353,24 @@ function renderMasterApprovals() {
         const shopName = s.name || SHOPS.find(sh => sh.id === shopId)?.name || shopId;
         const storePhotos = [];
 
-        if (s.pendingLogo && s.logoStatus === 'pending') {
+        if (s.pendingLogo && s.logoStatus !== 'rejected') {
             storePhotos.push({ kind: 'logo', label: t.storeLogoType, src: s.pendingLogo, status: 'pending' });
-        } else if (currentApprovalsFilter === 'all' && (s.logo || s.logoStatus === 'rejected')) {
-            if (s.logo) storePhotos.push({ kind: 'logo', label: t.storeLogoType, src: s.logo, status: s.logoStatus || 'approved' });
+        } else if (currentApprovalsFilter === 'all') {
+            if (s.logo) {
+                storePhotos.push({ kind: 'logo', label: t.storeLogoType, src: s.logo, status: s.logoStatus || 'approved' });
+            } else if (s.logoStatus === 'rejected') {
+                storePhotos.push({ kind: 'logo', label: t.storeLogoType, src: defaultShopLogo, status: 'rejected' });
+            }
         }
 
-        if (s.pendingHero && s.heroStatus === 'pending') {
+        if (s.pendingHero && s.heroStatus !== 'rejected') {
             storePhotos.push({ kind: 'hero', label: t.storeHeroType, src: s.pendingHero, status: 'pending' });
-        } else if (currentApprovalsFilter === 'all' && (s.hero || s.heroStatus === 'rejected')) {
-            if (s.hero) storePhotos.push({ kind: 'hero', label: t.storeHeroType, src: s.hero, status: s.heroStatus || 'approved' });
+        } else if (currentApprovalsFilter === 'all') {
+            if (s.hero) {
+                storePhotos.push({ kind: 'hero', label: t.storeHeroType, src: s.hero, status: s.heroStatus || 'approved' });
+            } else if (s.heroStatus === 'rejected') {
+                storePhotos.push({ kind: 'hero', label: t.storeHeroType, src: defaultShopHero, status: 'rejected' });
+            }
         }
 
         if (storePhotos.length > 0) {
@@ -3291,15 +3385,15 @@ function renderMasterApprovals() {
                     <div class="approval-photos-grid">
                         ${storePhotos.map(item => `
                             <div class="approval-photo-tile">
-                                <div class="approval-photo-thumb ${item.kind === 'hero' ? 'is-hero' : ''}" onclick="zoomImage('${item.src}')">
+                                <div class="approval-photo-thumb ${item.kind === 'hero' ? 'is-hero' : ''}" onclick="zoomImage(this.querySelector('img').src)">
                                     <img src="${item.src}" alt="${escapeHtml(item.label)}">
                                 </div>
                                 <div class="approval-photo-meta">
                                     <div style="font-size:12px; font-weight:700; color:#1E293B;">${item.label}</div>
                                     <div class="approval-status-text is-${item.status}">${item.status === 'pending' ? t.pendingLabel : (item.status === 'approved' ? t.approvedLabel : t.rejectedLabel)}</div>
                                     <div class="approval-photo-actions">
-                                        ${item.status !== 'approved' ? `<button type="button" class="btn-approve-photo" onclick="approveShopPhoto('${shopId}', '${item.kind}')">${t.approveBtn}</button>` : ''}
-                                        ${item.status !== 'rejected' ? `<button type="button" class="btn-reject-photo" onclick="rejectShopPhoto('${shopId}', '${item.kind}')">${t.rejectBtn}</button>` : ''}
+                                        ${item.status !== 'approved' ? `<button type="button" class="btn-approve-photo" onclick="approveShopPhoto('${escapeHtml(shopId)}', '${item.kind}')">${t.approveBtn}</button>` : ''}
+                                        ${item.status !== 'rejected' ? `<button type="button" class="btn-reject-photo" onclick="rejectShopPhoto('${escapeHtml(shopId)}', '${item.kind}')">${t.rejectBtn}</button>` : ''}
                                     </div>
                                 </div>
                             </div>
@@ -3332,19 +3426,19 @@ function renderMasterApprovals() {
                         <h4 style="margin:0; font-size:16px; font-weight:800; color:#1E293B;">${escapeHtml(p.name)}</h4>
                         <div style="font-size:12px; color:#64748B; margin-top:3px;">${escapeHtml(shopName)} · ${Number(p.price || 0).toLocaleString()} د.ع</div>
                     </div>
-                    ${hasPending ? `<button type="button" class="btn-approve-photo" style="flex:none; padding:8px 14px;" onclick="approveAllProductPhotos('${p.id}')">${t.approveAllBtn}</button>` : ''}
+                    ${hasPending ? `<button type="button" class="btn-approve-photo" style="flex:none; padding:8px 14px;" onclick="approveAllProductPhotos('${escapeHtml(p.id)}')">${t.approveAllBtn}</button>` : ''}
                 </div>
                 <div class="approval-photos-grid">
                     ${tilesToRender.map(item => `
                         <div class="approval-photo-tile">
-                            <div class="approval-photo-thumb" onclick="zoomImage('${item.img}')">
+                            <div class="approval-photo-thumb" onclick="zoomImage(this.querySelector('img').src)">
                                 <img src="${item.img}" alt="${escapeHtml(p.name)}">
                             </div>
                             <div class="approval-photo-meta">
                                 <div class="approval-status-text is-${item.status}">${item.status === 'pending' ? t.pendingLabel : (item.status === 'approved' ? t.approvedLabel : t.rejectedLabel)}</div>
                                 <div class="approval-photo-actions">
-                                    ${item.status !== 'approved' ? `<button type="button" class="btn-approve-photo" onclick="approveProductPhoto('${p.id}', ${item.idx})">${t.approveBtn}</button>` : ''}
-                                    ${item.status !== 'rejected' ? `<button type="button" class="btn-reject-photo" onclick="rejectProductPhoto('${p.id}', ${item.idx})">${t.rejectBtn}</button>` : ''}
+                                    ${item.status !== 'approved' ? `<button type="button" class="btn-approve-photo" onclick="approveProductPhoto('${escapeHtml(p.id)}', ${item.idx})">${t.approveBtn}</button>` : ''}
+                                    ${item.status !== 'rejected' ? `<button type="button" class="btn-reject-photo" onclick="rejectProductPhoto('${escapeHtml(p.id)}', ${item.idx})">${t.rejectBtn}</button>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -3387,11 +3481,25 @@ async function setProductPhotoDecision(productId, photoIdx, decision) {
 
     try {
         await updateDoc(doc(db, "inventory", productId), updatePayload);
+        const updatedProduct = {
+            ...p,
+            photoStatuses: statuses,
+            photoStatus: overallStatus,
+            image: updatePayload.image || p.image
+        };
+        PRODUCT_CACHE[productId] = updatedProduct;
+        const mIdx = MARKET_PRODUCTS.findIndex(item => item.id === productId);
+        if (mIdx !== -1) MARKET_PRODUCTS[mIdx] = updatedProduct;
+
+        renderMasterApprovals();
+        initMarketplace();
+        renderFilteredProducts();
         showToast(decision === 'approved'
             ? (currentLang === 'ar' ? 'تمت الموافقة على الصورة!' : 'Photo approved & published!')
             : (currentLang === 'ar' ? 'تم رفض الصورة.' : 'Photo rejected.'));
     } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, `inventory/${productId}`);
+        showToast(currentLang === 'ar' ? 'حدث خطأ أثناء تحديث الحالة' : 'Error updating photo status.');
     }
 }
 
@@ -3416,9 +3524,23 @@ async function approveAllProductPhotos(productId) {
             image: imgs[0] || p.image || '',
             updatedAt: serverTimestamp()
         });
+        const updatedProduct = {
+            ...p,
+            photoStatuses: statuses,
+            photoStatus: 'approved',
+            image: imgs[0] || p.image || ''
+        };
+        PRODUCT_CACHE[productId] = updatedProduct;
+        const mIdx = MARKET_PRODUCTS.findIndex(item => item.id === productId);
+        if (mIdx !== -1) MARKET_PRODUCTS[mIdx] = updatedProduct;
+
+        renderMasterApprovals();
+        initMarketplace();
+        renderFilteredProducts();
         showToast(currentLang === 'ar' ? 'تمت الموافقة على جميع الصور!' : 'All photos approved & published!');
     } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, `inventory/${productId}`);
+        showToast(currentLang === 'ar' ? 'حدث خطأ أثناء الموافقة' : 'Error approving photos.');
     }
 }
 
@@ -3426,7 +3548,7 @@ async function approveShopPhoto(shopId, kind) {
     if (!db) return;
     const settings = shopSettingsOverrides[shopId];
     if (!settings) return;
-    const updatePayload = { updatedAt: serverTimestamp() };
+    const updatePayload = { shopId, updatedAt: serverTimestamp() };
     if (kind === 'logo' && settings.pendingLogo) {
         updatePayload.logo = settings.pendingLogo;
         updatePayload.pendingLogo = '';
@@ -3435,30 +3557,48 @@ async function approveShopPhoto(shopId, kind) {
         updatePayload.hero = settings.pendingHero;
         updatePayload.pendingHero = '';
         updatePayload.heroStatus = 'approved';
+    } else {
+        return;
     }
     try {
         await setDoc(doc(db, "shop_settings", shopId), updatePayload, { merge: true });
+        shopSettingsOverrides[shopId] = { ...settings, ...updatePayload };
+        const shopIdx = SHOPS.findIndex(s => s.id === shopId);
+        if (shopIdx !== -1) {
+            if (updatePayload.logo) SHOPS[shopIdx].logo = updatePayload.logo;
+            if (updatePayload.hero) SHOPS[shopIdx].hero = updatePayload.hero;
+        }
+        renderMasterApprovals();
+        initMarketplace();
+        renderMasterShops();
         showToast(currentLang === 'ar' ? 'تمت الموافقة على صورة المتجر!' : 'Store photo approved & published!');
     } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, `shop_settings/${shopId}`);
+        showToast(currentLang === 'ar' ? 'حدث خطأ أثناء الموافقة' : 'Error approving store photo.');
     }
 }
 
 async function rejectShopPhoto(shopId, kind) {
     if (!db) return;
-    const updatePayload = { updatedAt: serverTimestamp() };
+    const settings = shopSettingsOverrides[shopId] || {};
+    const updatePayload = { shopId, updatedAt: serverTimestamp() };
     if (kind === 'logo') {
         updatePayload.pendingLogo = '';
         updatePayload.logoStatus = 'rejected';
     } else if (kind === 'hero') {
         updatePayload.pendingHero = '';
         updatePayload.heroStatus = 'rejected';
+    } else {
+        return;
     }
     try {
         await setDoc(doc(db, "shop_settings", shopId), updatePayload, { merge: true });
+        shopSettingsOverrides[shopId] = { ...settings, ...updatePayload };
+        renderMasterApprovals();
         showToast(currentLang === 'ar' ? 'تم رفض صورة المتجر.' : 'Store photo rejected.');
     } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, `shop_settings/${shopId}`);
+        showToast(currentLang === 'ar' ? 'حدث خطأ أثناء الرفض' : 'Error rejecting store photo.');
     }
 }
 
