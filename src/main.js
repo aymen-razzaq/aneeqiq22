@@ -1,6 +1,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getFirestore, collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, onSnapshot, serverTimestamp, getDocFromServer, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import defaultShopLogo from './assets/images/default_shop_logo_1795530726308.jpg';
+import defaultShopHero from './assets/images/default_shop_hero_1795530727876.jpg';
 
 console.log("Aneeq: main.js execution started at " + new Date().toISOString());
 
@@ -71,6 +73,7 @@ window.openContactModal = (...args) => openContactModal(...args);
 window.closeContactModal = (...args) => closeContactModal(...args);
 window.openTermsModal = (...args) => openTermsModal(...args);
 window.closeTermsModal = (...args) => closeTermsModal(...args);
+window.openCategoryFromHome = (...args) => openCategoryFromHome(...args);
 
 const firebaseConfig = {
   "projectId": "gen-lang-client-0293781004",
@@ -630,13 +633,30 @@ function updateStaticTranslations() {
         }
         
         // Home
+        const homeKicker = document.getElementById('home-kicker');
+        if (homeKicker) {
+            homeKicker.innerText = currentLang === 'ar'
+                ? 'أنيق ستور • السوق العراقي للأزياء'
+                : 'ANEEQ MARKETPLACE • CURATED INDEPENDENT FASHION';
+        }
+        const homeCatsTitle = document.getElementById('home-cats-title');
+        if (homeCatsTitle) {
+            homeCatsTitle.innerText = currentLang === 'ar' ? 'تصفح حسب الفئة' : 'Shop by Category';
+        }
+        document.querySelectorAll('[data-home-cat]').forEach(el => {
+            const cat = el.dataset.homeCat;
+            if (cat === 'Men') el.innerText = t.men;
+            if (cat === 'Women') el.innerText = t.women;
+            if (cat === 'Kids') el.innerText = t.kids;
+            if (cat === 'Shoes') el.innerText = t.shoes;
+        });
+
         const homeHero = document.querySelector('.home-hero');
         if(homeHero) {
             const h1 = homeHero.querySelector('h1');
             const p = homeHero.querySelector('p');
             const mpBtn = homeHero.querySelector('button[onclick="showView(\'marketplace\')"]');
             const bkBtn = document.getElementById('home-basket-btn');
-            const slBtn = document.getElementById('home-seller-btn');
             
             if (h1) h1.innerHTML = `${t.heroTitle} <span class="accent-text">${t.heroIdentity}</span>`;
             if (p) p.innerText = t.heroText;
@@ -734,18 +754,21 @@ function updateStaticTranslations() {
                 if (sni) sni.value = currentName;
             }
 
-            const cardis = adminDashboard.querySelectorAll('.cardi');
-            if (cardis.length >= 2) {
-                const h3Add = cardis[0].querySelector('h3');
+            const addCard = document.getElementById('seller-add-product-card');
+            if (addCard) {
+                const h3Add = addCard.querySelector('h3');
                 if (h3Add) h3Add.innerText = t.addNewProduct;
                 const hn = document.getElementById('p-name');
                 const hp = document.getElementById('p-price');
                 if (hn) hn.placeholder = t.productName;
                 if (hp) hp.placeholder = t.price;
-                const pubBtn = cardis[0].querySelector('.admin-form button');
+                const pubBtn = addCard.querySelector('button[onclick="addNewProduct()"]');
                 if (pubBtn) pubBtn.innerText = t.publishProduct;
+            }
 
-                const h3Inv = cardis[1].querySelector('h3');
+            const invCard = document.getElementById('seller-inventory-card');
+            if (invCard) {
+                const h3Inv = invCard.querySelector('h3');
                 if (h3Inv) h3Inv.innerText = t.inventory;
             }
 
@@ -863,6 +886,16 @@ function showView(viewId, skipState = false) {
     document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
     const target = document.getElementById(`view-${viewId}`);
     if(target) target.classList.remove('hidden');
+
+    // Sync active nav tab highlight
+    document.querySelectorAll('.navbar nav button').forEach(b => b.classList.remove('nav-active'));
+    if (viewId === 'marketplace' || viewId === 'shop') {
+        document.getElementById('nav-marketplace-btn')?.classList.add('nav-active');
+    } else if (viewId === 'basket') {
+        document.getElementById('nav-basket-btn')?.classList.add('nav-active');
+    } else if (viewId === 'account') {
+        document.getElementById('nav-account-btn')?.classList.add('nav-active');
+    }
     
     if(viewId === 'account') {
         refreshUserProfile();
@@ -879,6 +912,11 @@ function showView(viewId, skipState = false) {
     if(viewId === 'master') renderMasterOrders();
     
     window.scrollTo(0,0);
+}
+
+function openCategoryFromHome(cat) {
+    showView('marketplace');
+    filterByCategory(cat);
 }
 
 // UTILITIES
@@ -906,8 +944,8 @@ function initSettingsListener() {
                     phone: data.phone || "",
                     pass: data.pass || data.password || "",
                     category: data.category || "",
-                    logo: data.logo || "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200",
-                    hero: data.hero || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=1200",
+                    logo: data.logo || defaultShopLogo,
+                    hero: data.hero || defaultShopHero,
                 });
             }
         });
@@ -986,12 +1024,12 @@ function initMarketplace() {
     list.innerHTML = filteredShops.map(shop => {
         const t = TRANSLATIONS[currentLang];
         const shopName = shopSettingsOverrides[shop.id]?.name || shop.name;
-        const shopLogo = shopSettingsOverrides[shop.id]?.logo || shop.logo;
+        const shopLogo = shopSettingsOverrides[shop.id]?.logo || shop.logo || defaultShopLogo;
         return `
             <div class="shop-card" onclick="openShop('${shop.id}')">
                 <div class="shop-frame">
                     <div class="shop-card-content">
-                        <img src="${shopLogo}" class="shop-logo" alt="${shopName} logo">
+                        <img src="${shopLogo}" class="shop-logo" alt="${shopName} logo" onerror="this.src='${defaultShopLogo}'">
                         <div class="shop-info">
                             <h3>${shopName}</h3>
                             <div class="shop-hint">${t.visitShop}</div>
@@ -1058,6 +1096,9 @@ function renderProductFeed() {
 
         feedContainer.innerHTML = allProducts.map(p => `
             <div class="product-card" onclick="openBuyModal('${p.id}')">
+                <div class="product-img-wrapper">
+                    <img src="${p.image || defaultShopHero}" alt="${p.name}" onerror="this.src='${defaultShopHero}'">
+                </div>
                 <div class="product-info-top">
                     <div class="product-meta">
                         <span class="product-shop-tag" onclick="event.stopPropagation(); openShop('${p.shopId}')">
@@ -1066,20 +1107,15 @@ function renderProductFeed() {
                     </div>
                     <h3>${p.name}</h3>
                 </div>
-                <div class="product-img-wrapper">
-                    <img src="${p.image}" alt="${p.name}">
-                </div>
                 <div class="product-info-bottom">
-                    <div style="padding: 10px 15px; border-top: 1px solid #f9f9f9;">
-                         ${p.description ? `<p style="font-size: 11px; color: #666; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;">${p.description}</p>` : ''}
-                         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                            ${(p.tags || []).map(tag => `<span class="product-tag">${tag}</span>`).join('')}
-                         </div>
+                    <div>
+                        ${p.description ? `<p class="product-desc-line">${p.description}</p>` : ''}
+                        ${(p.tags && p.tags.length) ? `<div class="product-tags-inline">${p.tags.join(' · ')}</div>` : ''}
                     </div>
                     <div class="product-card-footer">
-                        <div class="product-price">${p.price} د.ع</div>
-                        <button class="btn-buy-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        <div class="product-price">${Number(p.price || 0).toLocaleString()} د.ع</div>
+                        <button class="btn-buy-icon" aria-label="${t.buyNow}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </button>
                     </div>
                 </div>
@@ -1100,23 +1136,21 @@ function openShop(shopId) {
     activeShop = shop;
     showView('shop');
     
-    const heroImage = shopSettingsOverrides[shopId]?.hero || shop?.hero;
-    const shopLogo = shopSettingsOverrides[shopId]?.logo || shop?.logo;
+    const heroImage = shopSettingsOverrides[shopId]?.hero || shop?.hero || defaultShopHero;
+    const shopLogo = shopSettingsOverrides[shopId]?.logo || shop?.logo || defaultShopLogo;
     const shopName = shopSettingsOverrides[shopId]?.name || shop?.name;
     
     document.getElementById('shop-header-container').innerHTML = `
         <div class="shop-profile-header">
-            <!-- Hero Banner Container (Optimized Layout showing full image) -->
             <div class="shop-hero-banner">
-                <img class="shop-hero-bg-blur" src="${heroImage}" alt="">
-                <img class="shop-hero-img" src="${heroImage}" alt="${shopName} Hero Banner">
+                <img class="shop-hero-bg-blur" src="${heroImage}" alt="" onerror="this.src='${defaultShopHero}'">
+                <img class="shop-hero-img" src="${heroImage}" alt="${shopName} Hero Banner" onerror="this.src='${defaultShopHero}'">
                 <div class="shop-hero-overlay"></div>
             </div>
             
-            <!-- Shop Info Overlay-free Bar -->
             <div class="shop-info-bar">
                 <div class="shop-logo-container">
-                    <img class="shop-logo-img" src="${shopLogo}" alt="${shopName} Logo">
+                    <img class="shop-logo-img" src="${shopLogo}" alt="${shopName} Logo" onerror="this.src='${defaultShopLogo}'">
                 </div>
                 
                 <div class="shop-title-details">
@@ -1163,23 +1197,21 @@ function renderProducts(shopId) {
 
         container.innerHTML = shopProducts.map(p => `
             <div class="product-card" onclick="openBuyModal('${p.id}')">
+                <div class="product-img-wrapper">
+                    <img src="${p.image || defaultShopHero}" alt="${p.name}" onerror="this.src='${defaultShopHero}'">
+                </div>
                 <div class="product-info-top">
                     <h3>${p.name}</h3>
                 </div>
-                <div class="product-img-wrapper">
-                    <img src="${p.image}" alt="${p.name}">
-                </div>
                 <div class="product-info-bottom">
-                    <div style="padding: 10px 15px; border-top: 1px solid #f9f9f9;">
-                         ${p.description ? `<p style="font-size: 11px; color: #666; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;">${p.description}</p>` : ''}
-                         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                            ${(p.tags || []).map(tag => `<span class="product-tag">${tag}</span>`).join('')}
-                         </div>
+                    <div>
+                        ${p.description ? `<p class="product-desc-line">${p.description}</p>` : ''}
+                        ${(p.tags && p.tags.length) ? `<div class="product-tags-inline">${p.tags.join(' · ')}</div>` : ''}
                     </div>
                     <div class="product-card-footer">
-                        <div class="product-price">${p.price} د.ع</div>
-                        <button class="btn-buy-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        <div class="product-price">${Number(p.price || 0).toLocaleString()} د.ع</div>
+                        <button class="btn-buy-icon" aria-label="${t.buyNow}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </button>
                     </div>
                 </div>
@@ -1196,30 +1228,28 @@ function openBuyModal(productId) {
     if (!p) return;
     
     currentProductToBuy = p;
-    const images = p.images || [p.image];
+    const images = (p.images && p.images.length) ? p.images : [p.image || defaultShopHero];
     
     document.getElementById('modal-product-info').innerHTML = `
-        <div style="margin-bottom:20px;">
-            <div style="margin-bottom:15px;">
-                <div id="modal-gallery" style="width: 100%; position: relative; border-radius: 12px; overflow: hidden; background: #f9f9f9; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: zoom-in;" onclick="zoomImage(currentGalleryImage || '${images[0]}')">
-                    <img id="main-modal-img" src="${images[0]}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+        <div style="margin-bottom:18px;">
+            <div style="margin-bottom:14px;">
+                <div id="modal-gallery" style="width: 100%; position: relative; border-radius: 16px; overflow: hidden; background: #F7F9FC; border: 1px solid #E5EBF3; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: zoom-in;" onclick="zoomImage(currentGalleryImage || '${images[0]}')">
+                    <img id="main-modal-img" src="${images[0]}" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.src='${defaultShopHero}'">
                 </div>
                 ${images.length > 1 ? `
-                    <div style="display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 5px;">
+                    <div style="display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 4px;">
                         ${images.map((img, i) => `
-                            <img src="${img}" onclick="event.stopPropagation(); updateModalGallery('${img}')" style="width: 50px; height: 50px; border-radius: 6px; object-fit: cover; border: 2px solid ${i === 0 ? '#000' : 'transparent'}; cursor: pointer;">
+                            <img src="${img}" onclick="event.stopPropagation(); updateModalGallery('${img}')" style="width: 52px; height: 52px; border-radius: 10px; object-fit: cover; border: 2px solid ${i === 0 ? '#2563EB' : '#E5EBF3'}; cursor: pointer;" onerror="this.src='${defaultShopHero}'">
                         `).join('')}
                     </div>
                 ` : ''}
-                <div style="margin-top: 15px;">
-                    <h3 style="margin:0; font-family:var(--font-serif); font-size:24px; font-weight: 700;">${p.name}</h3>
-                    <div style="color:var(--accent); font-weight:700; font-size:20px; margin-top: 4px;">${p.price} د.ع</div>
+                <div style="margin-top: 14px;">
+                    <h3 style="margin:0; font-size:22px; font-weight: 800; color:#1E293B;">${p.name}</h3>
+                    <div style="color:#2563EB; font-weight:800; font-size:20px; margin-top: 4px; font-variant-numeric:tabular-nums;">${Number(p.price || 0).toLocaleString()} د.ع</div>
                 </div>
             </div>
-            ${p.description ? `<p style="font-size:14px; color:#666; line-height:1.6; margin-bottom:15px;">${p.description}</p>` : ''}
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                ${(p.tags || []).map(t => `<span class="product-tag">${t}</span>`).join('')}
-            </div>
+            ${p.description ? `<p style="font-size:14px; color:#64748B; line-height:1.6; margin:0 0 12px;">${p.description}</p>` : ''}
+            ${(p.tags && p.tags.length) ? `<div style="font-size:12px; font-weight:600; color:#64748B;">${p.tags.join(' · ')}</div>` : ''}
         </div>
     `;
     
@@ -1228,9 +1258,8 @@ function openBuyModal(productId) {
         const main = document.getElementById('main-modal-img');
         if (main) main.src = src;
         window.currentGalleryImage = src;
-        // Highlight active thumbnail
         document.querySelectorAll('#modal-gallery + div img').forEach(img => {
-            img.style.borderColor = (img.src === src || img.getAttribute('src') === src) ? '#000' : 'transparent';
+            img.style.borderColor = (img.src === src || img.getAttribute('src') === src) ? '#2563EB' : '#E5EBF3';
         });
     };
     
@@ -1432,26 +1461,26 @@ function toggleAuthMode(mode) {
     if(mode === 'login') {
         if (loginTab) {
             loginTab.style.fontWeight = '700';
-            loginTab.style.borderBottom = '2px solid #000';
-            loginTab.style.color = '#000';
+            loginTab.style.borderBottom = '2px solid #2563EB';
+            loginTab.style.color = '#1E293B';
         }
         if (regTab) {
-            regTab.style.fontWeight = '400';
+            regTab.style.fontWeight = '500';
             regTab.style.borderBottom = 'none';
-            regTab.style.color = '#999';
+            regTab.style.color = '#64748B';
         }
         if (loginForm) loginForm.classList.remove('hidden');
         if (regForm) regForm.classList.add('hidden');
     } else {
         if (regTab) {
             regTab.style.fontWeight = '700';
-            regTab.style.borderBottom = '2px solid #000';
-            regTab.style.color = '#000';
+            regTab.style.borderBottom = '2px solid #2563EB';
+            regTab.style.color = '#1E293B';
         }
         if (loginTab) {
-            loginTab.style.fontWeight = '400';
+            loginTab.style.fontWeight = '500';
             loginTab.style.borderBottom = 'none';
-            loginTab.style.color = '#999';
+            loginTab.style.color = '#64748B';
         }
         if (regForm) regForm.classList.remove('hidden');
         if (loginForm) loginForm.classList.add('hidden');
@@ -1675,8 +1704,8 @@ function updateProfileUI() {
         const shop = SHOPS.find(s => s.id === loggedInShopId);
         
         const currentName = settings.name || shop?.name || "My Shop";
-        const logo = settings.logo || shop?.logo || "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200";
-        const hero = settings.hero || shop?.hero || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=1200";
+        const logo = settings.logo || shop?.logo || defaultShopLogo;
+        const hero = settings.hero || shop?.hero || defaultShopHero;
         
         document.getElementById('store-name-input').value = currentName;
         document.getElementById('store-phone-input').value = loggedInUser.phone;
@@ -1792,21 +1821,19 @@ function renderAdminInventory() {
         snapshot.forEach(doc => products.push({ ...doc.data(), id: doc.id }));
 
         list.innerHTML = products.map((p) => `
-            <div style="display:flex; align-items:center; gap: 15px; padding:15px 0; border-bottom:1px solid #eee;">
-                <img src="${p.image}" style="width:40px; height:40px; border-radius:8px; object-fit:cover; border: 1px solid #000;">
-                <div style="flex:1;">
-                    <div style="font-weight:600; font-size:14px;">${p.name}</div>
-                    <div style="font-size:12px; color:#999;">${p.price} د.ع</div>
-                    <div style="display: flex; gap: 4px; margin-top: 4px;">
-                        ${(p.tags || []).map(t => `<span class="product-tag" style="padding: 2px 6px; font-size: 8px;">${t}</span>`).join('')}
-                    </div>
+            <div style="display:flex; align-items:center; gap: 14px; padding:14px 0; border-bottom:1px solid #E5EBF3;">
+                <img src="${p.image || defaultShopHero}" style="width:48px; height:48px; border-radius:12px; object-fit:cover; border: 1px solid #E5EBF3;" onerror="this.src='${defaultShopHero}'">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:700; font-size:14px; color:#1E293B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
+                    <div style="font-size:13px; color:#2563EB; font-weight:700; font-variant-numeric:tabular-nums;">${Number(p.price || 0).toLocaleString()} د.ع</div>
+                    ${(p.tags && p.tags.length) ? `<div style="font-size:11px; color:#64748B; margin-top:2px;">${p.tags.join(' · ')}</div>` : ''}
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <button onclick="editProduct('${p.id}')" style="color:#2196F3; border:none; background:none; cursor:pointer; font-weight:600; font-size:13px; padding: 5px;">Edit</button>
-                    <button onclick="deleteProduct('${p.id}')" style="color:#ff4444; border:none; background:none; cursor:pointer; font-weight:600; font-size:13px; padding: 5px;">${t.delete}</button>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="editProduct('${p.id}')" style="color:#1D4ED8; border:1px solid #BFDBFE; background:#EFF6FF; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px; padding: 6px 12px;">${t.edit}</button>
+                    <button onclick="deleteProduct('${p.id}')" style="color:#EF4444; border:1px solid #FEE2E2; background:#FEF2F2; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px; padding: 6px 12px;">${t.delete}</button>
                 </div>
             </div>
-        `).join('') || `<p style="color:#999; text-align:center; padding:40px;">${t.noProducts}</p>`;
+        `).join('') || `<p style="color:#64748B; text-align:center; padding:36px;">${t.noProducts}</p>`;
     }, (error) => {
         handleFirestoreError(error, OperationType.GET, "inventory");
     });
@@ -1961,16 +1988,16 @@ function removeStoreImage(type) {
         currentStoreLogo = ""; // Signal removal/reset in save
         const preview = document.getElementById('logo-preview-container');
         const shop = SHOPS.find(s => s.id === loggedInShopId);
-        const defaultLogo = shop?.logo || "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200";
-        if (preview) preview.innerHTML = `<img src="${defaultLogo}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; opacity: 0.5;">`;
+        const fallbackLogo = shop?.logo || defaultShopLogo;
+        if (preview) preview.innerHTML = `<img src="${fallbackLogo}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; opacity: 0.5;">`;
         const btn = document.getElementById('remove-logo-btn');
         if (btn) btn.classList.add('hidden');
     } else if (type === 'hero') {
         currentStoreHero = ""; // Signal removal/reset in save
         const preview = document.getElementById('hero-preview-container');
         const shop = SHOPS.find(s => s.id === loggedInShopId);
-        const defaultHero = shop?.hero || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=1200";
-        if (preview) preview.innerHTML = `<img src="${defaultHero}" style="width:100%; height:100%; object-fit:cover; border-radius:12px; opacity: 0.5;">`;
+        const fallbackHero = shop?.hero || defaultShopHero;
+        if (preview) preview.innerHTML = `<img src="${fallbackHero}" style="width:100%; height:100%; object-fit:cover; border-radius:12px; opacity: 0.5;">`;
         const btn = document.getElementById('remove-hero-btn');
         if (btn) btn.classList.add('hidden');
     }
@@ -2153,7 +2180,7 @@ function renderTagPills(type) {
     container.innerHTML = tags.map((t, idx) => `
         <span class="product-tag" style="display: inline-flex; align-items: center; gap: 8px; cursor: default;">
             ${t}
-            <span onclick="removeTagFromProduct('${type}', ${idx})" style="cursor: pointer; font-size: 16px; font-weight: 400; line-height: 1; border-left: 1px solid #000; padding-left: 6px; margin-left: 2px;">&times;</span>
+            <span onclick="removeTagFromProduct('${type}', ${idx})" style="cursor: pointer; font-size: 16px; font-weight: 600; line-height: 1; border-inline-start: 1px solid #BFDBFE; padding-inline-start: 6px;">&times;</span>
         </span>
     `).join('');
 }
@@ -2315,28 +2342,29 @@ function handleBasketAutoTrack() {
         } else {
             customerOrders.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
             listDiv.innerHTML = customerOrders.map(o => {
-                const statusColor = o.status === 'Accepted' ? '#4CAF50' : (o.status === 'Refused' ? '#F44336' : '#999');
+                const statusColor = o.status === 'Accepted' ? '#1D4ED8' : (o.status === 'Refused' ? '#EF4444' : '#D97706');
+                const statusBg = o.status === 'Accepted' ? '#EFF6FF' : (o.status === 'Refused' ? '#FEF2F2' : '#FFFBEB');
                 let displayStatus = (o.status === 'pending' || !o.status) ? t.pending : o.status;
                 if(o.status === 'Accepted') displayStatus = t.statusAccepted;
                 if(o.status === 'Refused') displayStatus = t.statusRefused;
 
                 return `
-                    <div class="order-item" style="flex-direction: column; align-items: stretch; gap: 10px; border: 1px solid #eee; margin-bottom: 15px; border-radius: 16px; padding: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="order-item" style="flex-direction: column; align-items: stretch; gap: 12px; border: 1px solid #E5EBF3; border-radius: 18px; padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                             <div>
-                                <strong style="font-size: 16px;">${o.productName}</strong><br>
-                                <small style="color: #999;">${o.shopName} | ${o.time}</small>
+                                <strong style="font-size: 16px; color: #1E293B;">${o.productName}</strong><br>
+                                <small style="color: #64748B;">${o.shopName} · ${o.time}</small>
                             </div>
-                            <span style="background: ${statusColor}; color: white; padding: 6px 14px; border-radius: 20px; font-size: 10px; font-weight: bold; text-transform: uppercase;">${displayStatus}</span>
+                            <span style="background: ${statusBg}; color: ${statusColor}; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;">${displayStatus}</span>
                         </div>
                         
                         ${o.masterMessage ? `
-                            <div style="background: #fdfdfd; padding: 15px; border-radius: 12px; border-left: 4px solid ${statusColor}; margin-top: 10px;">
-                                <p style="font-size: 10px; color: #999; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">Aneeq Master</p>
-                                <p style="color: #333; font-style: italic; line-height: 1.5; font-size: 14px;">"${o.masterMessage}"</p>
+                            <div style="background: #F7F9FC; padding: 14px; border-radius: 12px; border: 1px solid #E5EBF3;">
+                                <p style="font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 700; margin: 0 0 4px;">aneeq Master</p>
+                                <p style="color: #1E293B; line-height: 1.5; font-size: 14px; margin: 0;">"${o.masterMessage}"</p>
                             </div>
                         ` : `
-                            <p style="font-size: 12px; color: #999; margin-top: 10px; font-style: italic;">${t.waitMaster}</p>
+                            <p style="font-size: 13px; color: #64748B; margin: 0;">${t.waitMaster}</p>
                         `}
                     </div>
                 `;
@@ -2373,12 +2401,10 @@ function renderMasterOrders() {
         let orders = [];
         snapshot.forEach(doc => orders.push({ ...doc.data(), id: doc.id }));
         
-        // Render the Recharts AreaChart using the global callback
         if (typeof window.updateMasterChart === 'function') {
             window.updateMasterChart(orders, currentLang);
         }
 
-        // Detect newly added orders in real-time
         snapshot.docChanges().forEach((change) => {
             if (change.type === 'added' && !isInitial) {
                 const docData = change.doc.data();
@@ -2388,46 +2414,47 @@ function renderMasterOrders() {
         isInitial = false;
 
         document.getElementById('master-stats').innerHTML = `
-            <div style="display:flex; gap:20px; margin-top:20px;">
-                <div>${t.totalLabel}${orders.length}</div>
-                <div style="color:lawngreen">${t.systemOnline}</div>
+            <div style="display:flex; gap:18px; margin-top:14px; font-size:14px; font-weight:600;">
+                <div style="font-variant-numeric:tabular-nums;">${t.totalLabel}${orders.length}</div>
+                <div style="color:#60A5FA;">${t.systemOnline}</div>
             </div>
         `;
         orders.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         container.innerHTML = orders.map((o) => {
-            const statusColor = o.status === 'Accepted' ? '#4CAF50' : (o.status === 'Refused' ? '#F44336' : '#999');
+            const statusColor = o.status === 'Accepted' ? '#1D4ED8' : (o.status === 'Refused' ? '#EF4444' : '#D97706');
+            const statusBg = o.status === 'Accepted' ? '#EFF6FF' : (o.status === 'Refused' ? '#FEF2F2' : '#FFFBEB');
             let displayStatus = (o.status === 'pending' || !o.status) ? (currentLang === 'ar' ? 'قيد الانتظار' : 'Pending') : o.status;
             if(o.status === 'Accepted') displayStatus = t.statusAccepted;
             if(o.status === 'Refused') displayStatus = t.statusRefused;
             return `
-            <div class="order-item" style="flex-direction: column; align-items: stretch; gap: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="order-item" style="flex-direction: column; align-items: stretch; gap: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
                     <div>
-                        <strong style="font-size: 1.1em;">${o.productName}</strong><br>
-                        <small>${o.shopName} | ${o.time}</small><br>
-                        <span style="color:var(--accent); font-weight:700;">${o.price} د.ع</span><br>
-                        <div style="background:rgba(0,0,0,0.03); padding: 8px; border-radius: 8px; margin-top: 10px; font-size: 13px; border-left: 3px solid var(--accent);">
+                        <strong style="font-size: 16px; color:#1E293B;">${o.productName}</strong><br>
+                        <small style="color:#64748B;">${o.shopName} · ${o.time}</small><br>
+                        <span style="color:#2563EB; font-weight:800; font-variant-numeric:tabular-nums; display:inline-block; margin-top:4px;">${Number(o.price || 0).toLocaleString()} د.ع</span>
+                        <div style="background:#F7F9FC; padding: 10px 12px; border-radius: 10px; margin-top: 10px; font-size: 13px; border: 1px solid #E5EBF3; color:#1E293B;">
                             <strong>${t.locationDetails}</strong> ${o.location}
                         </div>
                     </div>
-                    <div style="text-align:right">
-                        <span style="background: ${statusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase;">${displayStatus}</span><br>
-                        <span style="color:#999; font-size:12px; display: block; margin-top: 5px;">${t.phLabel} ${o.phone}</span>
+                    <div style="text-align: end;">
+                        <span style="background: ${statusBg}; color: ${statusColor}; padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; display:inline-block;">${displayStatus}</span><br>
+                        <span style="color:#64748B; font-size:12px; display: block; margin-top: 6px; font-variant-numeric:tabular-nums;">${t.phLabel} ${o.phone}</span>
                     </div>
                 </div>
-                ${(o.status === 'pending' || !o.status) ? `<div style="border-top: 1px solid #eee; padding-top: 15px;">
-                        <p style="font-size: 12px; font-weight: bold; margin-bottom: 8px; color: #444;">${t.masterAction}</p>
-                        <textarea id="msg-${o.id}" placeholder="${t.typeMessage}" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; font-size: 14px; min-height: 60px;"></textarea>
+                ${(o.status === 'pending' || !o.status) ? `<div style="border-top: 1px solid #E5EBF3; padding-top: 14px;">
+                        <p style="font-size: 12px; font-weight: 700; margin: 0 0 8px; color: #334155;">${t.masterAction}</p>
+                        <textarea id="msg-${o.id}" placeholder="${t.typeMessage}" style="margin-bottom: 10px; min-height: 60px;"></textarea>
                         <div style="display: flex; gap: 10px;">
-                            <button onclick="updateOrderStatus('${o.id}', 'Accepted')" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;">${t.acceptRequest}</button>
-                            <button onclick="updateOrderStatus('${o.id}', 'Refused')" style="flex: 1; background: #F44336; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;">${t.refuseRequest}</button>
+                            <button onclick="updateOrderStatus('${o.id}', 'Accepted')" style="flex: 1; background: #2563EB; color: white; border: none; padding: 11px; border-radius: 10px; cursor: pointer; font-weight: 700;">${t.acceptRequest}</button>
+                            <button onclick="updateOrderStatus('${o.id}', 'Refused')" style="flex: 1; background: #EF4444; color: white; border: none; padding: 11px; border-radius: 10px; cursor: pointer; font-weight: 700;">${t.refuseRequest}</button>
                         </div>
-                    </div>` : `<div style="border-top: 1px solid #eee; padding-top: 10px; font-size: 13px;">
-                        <strong>${t.messageSent}</strong> <span style="color: #666;">${o.masterMessage || 'No message provided.'}</span>
-                        <button onclick="deleteOrderByID('${o.id}')" style="display: block; margin-top: 10px; background: none; border: none; color: #999; cursor: pointer; font-size: 11px; text-decoration: underline; padding: 0;">${t.removeHistory}</button>
+                    </div>` : `<div style="border-top: 1px solid #E5EBF3; padding-top: 12px; font-size: 13px;">
+                        <strong>${t.messageSent}</strong> <span style="color: #64748B;">${o.masterMessage || 'No message provided.'}</span>
+                        <button onclick="deleteOrderByID('${o.id}')" style="display: block; margin-top: 10px; background: none; border: none; color: #64748B; cursor: pointer; font-size: 12px; text-decoration: underline; padding: 0;">${t.removeHistory}</button>
                     </div>`}
             </div>
-        `}).join('') || `<p style="color:#999; text-align:center;">${t.noItemsMarket}</p>`;
+        `}).join('') || `<p style="color:#64748B; text-align:center; padding:32px;">${t.noItemsMarket}</p>`;
     }, (error) => {
         handleFirestoreError(error, OperationType.GET, "orders");
     });
@@ -2442,24 +2469,24 @@ function switchMasterTab(tab) {
     
     if (tab === 'orders') {
         ordersTab.style.fontWeight = '700';
-        ordersTab.style.borderBottom = '2px solid #fff';
-        ordersTab.style.color = '#fff';
+        ordersTab.style.borderBottom = '2px solid #2563EB';
+        ordersTab.style.color = '#FFFFFF';
         
-        shopsTab.style.fontWeight = '400';
+        shopsTab.style.fontWeight = '500';
         shopsTab.style.borderBottom = 'none';
-        shopsTab.style.color = '#999';
+        shopsTab.style.color = '#94A3B8';
         
         ordersView.classList.remove('hidden');
         shopsView.classList.add('hidden');
         renderMasterOrders();
     } else {
         shopsTab.style.fontWeight = '700';
-        shopsTab.style.borderBottom = '2px solid #fff';
-        shopsTab.style.color = '#fff';
+        shopsTab.style.borderBottom = '2px solid #2563EB';
+        shopsTab.style.color = '#FFFFFF';
         
-        ordersTab.style.fontWeight = '400';
+        ordersTab.style.fontWeight = '500';
         ordersTab.style.borderBottom = 'none';
-        ordersTab.style.color = '#999';
+        ordersTab.style.color = '#94A3B8';
         
         shopsView.classList.remove('hidden');
         ordersView.classList.add('hidden');
@@ -2472,7 +2499,7 @@ function renderMasterShops() {
     if (!list) return;
 
     if (SHOPS.length === 0) {
-        list.innerHTML = `<div style="text-align: center; color: #666; padding: 40px;">No registered stores found / لا يوجد متاجر مسجلة</div>`;
+        list.innerHTML = `<div style="text-align: center; color: #64748B; padding: 40px; background:#FFFFFF; border:1px solid #E5EBF3; border-radius:18px;">No registered stores found / لا يوجد متاجر مسجلة</div>`;
         return;
     }
 
@@ -2480,34 +2507,34 @@ function renderMasterShops() {
         const settings = shopSettingsOverrides[shop.id] || {};
         const shopName = settings.name || shop.name;
         const currentCat = settings.category || "";
-        const shopLogo = settings.logo || shop.logo || "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200";
+        const shopLogo = settings.logo || shop.logo || defaultShopLogo;
         const shopPhone = settings.phone || shop.phone || "";
         const shopPass = settings.pass || settings.password || shop.pass || "";
         
         return `
-            <div class="order-item" style="display: flex; align-items: center; justify-content: space-between; gap: 15px; border: 1px solid #333; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <img src="${shopLogo}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 1px solid #444;" alt="logo" onerror="this.src='https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200'">
+            <div class="order-item" style="display: flex; align-items: center; justify-content: space-between; gap: 15px; border: 1px solid #E5EBF3; padding: 18px 20px; background: #FFFFFF; border-radius: 18px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <img src="${shopLogo}" style="width: 52px; height: 52px; border-radius: 14px; object-fit: cover; border: 1px solid #E5EBF3;" alt="logo" onerror="this.src='${defaultShopLogo}'">
                     <div>
-                        <h3 style="margin: 0; font-size: 16px; color: #fff;">${shopName}</h3>
-                        <p style="font-size: 11px; color: #888; margin: 3px 0 0 0;">
-                            ID: <strong style="color: #ccc;">${shop.id}</strong> | 
-                            Phone: <strong style="color: #ccc;">${shopPhone}</strong> | 
-                            Pass: <strong style="color: #ccc;">${shopPass}</strong>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1E293B;">${shopName}</h3>
+                        <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">
+                            ID: <strong style="color: #1E293B;">${shop.id}</strong> · 
+                            Phone: <strong style="color: #1E293B;">${shopPhone}</strong> · 
+                            Pass: <strong style="color: #1E293B;">${shopPass}</strong>
                         </p>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <select id="cat-select-${shop.id}" style="background: #222; color: #fff; border: 1px solid #444; padding: 8px 12px; border-radius: 8px; font-size: 13px;">
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <select id="cat-select-${shop.id}" style="width:auto; padding: 8px 12px; border-radius: 10px; font-size: 13px;">
                         <option value="" ${!currentCat ? 'selected' : ''}>Uncategorized (Hidden) / غير مصنف</option>
                         <option value="Men" ${currentCat === 'Men' ? 'selected' : ''}>Men / رجالي</option>
                         <option value="Women" ${currentCat === 'Women' ? 'selected' : ''}>Women / نسائي</option>
                         <option value="Kids" ${currentCat === 'Kids' ? 'selected' : ''}>Kids / أطفال</option>
                         <option value="Shoes" ${currentCat === 'Shoes' ? 'selected' : ''}>Shoes / أحذية</option>
                     </select>
-                    <button class="btn-primary" onclick="updateShopCategory('${shop.id}')" style="padding: 8px 15px; font-size: 12px; background: #333; color: #fff; border-radius: 8px; border: 1px solid #444; cursor: pointer;">Save Cat</button>
-                    <button class="btn-primary" onclick="openMasterShopModal('edit', '${shop.id}')" style="padding: 8px 15px; font-size: 12px; background: #fff; color: #000; border-radius: 8px; border: none; font-weight: 500; cursor: pointer;">Edit / Photos</button>
-                    <button class="btn-primary" onclick="deleteMasterShop('${shop.id}')" style="padding: 8px 15px; font-size: 12px; background: #e74c3c; color: #fff; border-radius: 8px; border: none; font-weight: 500; cursor: pointer;">Delete / حذف</button>
+                    <button class="btn-outline" onclick="updateShopCategory('${shop.id}')" style="padding: 8px 14px; font-size: 12px;">Save Cat</button>
+                    <button class="btn-primary" onclick="openMasterShopModal('edit', '${shop.id}')" style="width:auto; min-height:38px; padding: 8px 14px; font-size: 12px;">Edit / Photos</button>
+                    <button class="btn-primary" onclick="deleteMasterShop('${shop.id}')" style="width:auto; min-height:38px; padding: 8px 14px; font-size: 12px; background: #EF4444;">Delete / حذف</button>
                 </div>
             </div>
         `;
@@ -2563,8 +2590,8 @@ async function openMasterShopModal(mode, shopId = '') {
         if (phoneInput) phoneInput.value = '';
         if (passInput) passInput.value = '';
         if (catSelect) catSelect.value = '';
-        if (logoImg) logoImg.src = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200';
-        if (heroImg) heroImg.src = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=1200';
+        if (logoImg) logoImg.src = defaultShopLogo;
+        if (heroImg) heroImg.src = defaultShopHero;
     } else {
         if (titleEl) titleEl.innerText = currentLang === 'ar' ? 'تعديل بيانات المتجر' : 'Edit Store Details / Photos';
         if (modeInput) modeInput.value = 'edit';
@@ -2581,8 +2608,8 @@ async function openMasterShopModal(mode, shopId = '') {
             if (passInput) passInput.value = settings.pass || settings.password || shop.pass || '';
             if (catSelect) catSelect.value = settings.category || shop.category || '';
             
-            const currentLogo = settings.logo || shop.logo || 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200';
-            const currentHero = settings.hero || shop.hero || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=1200';
+            const currentLogo = settings.logo || shop.logo || defaultShopLogo;
+            const currentHero = settings.hero || shop.hero || defaultShopHero;
             
             if (logoImg) logoImg.src = currentLogo;
             if (heroImg) heroImg.src = currentHero;
@@ -2671,8 +2698,8 @@ async function saveMasterShop() {
         };
 
         if (mode === 'add') {
-            shopSettingsData.logo = currentMasterShopLogo || "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200";
-            shopSettingsData.hero = currentMasterHero || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=1200";
+            shopSettingsData.logo = currentMasterShopLogo || defaultShopLogo;
+            shopSettingsData.hero = currentMasterHero || defaultShopHero;
         } else {
             if (currentMasterShopLogo) {
                 shopSettingsData.logo = currentMasterShopLogo;

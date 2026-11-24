@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Activity } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -29,7 +30,6 @@ export const MasterChart: React.FC<MasterChartProps> = ({ orders, lang }) => {
   const isAr = lang === 'ar';
 
   const chartData = useMemo(() => {
-    // Generate the last 7 days (including today)
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
@@ -37,7 +37,6 @@ export const MasterChart: React.FC<MasterChartProps> = ({ orders, lang }) => {
     });
 
     return days.map((day) => {
-      // Find orders matching this day
       const dayOrders = orders.filter((o) => {
         let orderDate: Date | null = null;
         if (o.createdAt) {
@@ -61,7 +60,6 @@ export const MasterChart: React.FC<MasterChartProps> = ({ orders, lang }) => {
         );
       });
 
-      // Format date label
       const label = day.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', {
         month: 'short',
         day: 'numeric',
@@ -71,7 +69,6 @@ export const MasterChart: React.FC<MasterChartProps> = ({ orders, lang }) => {
         date: label,
         orderCount: dayOrders.length,
         revenue: dayOrders.reduce((sum, o) => {
-          // Parse price. e.g. "25,000 د.ع" or 25000
           if (!o.price) return sum;
           const parsedStr = String(o.price).replace(/[^\d]/g, '');
           const val = parseInt(parsedStr, 10) || 0;
@@ -81,63 +78,161 @@ export const MasterChart: React.FC<MasterChartProps> = ({ orders, lang }) => {
     });
   }, [orders, isAr]);
 
-  // Aggregate stats
   const totalOrdersLast7Days = useMemo(() => {
     return chartData.reduce((sum, d) => sum + d.orderCount, 0);
   }, [chartData]);
 
   const activeOrdersCount = useMemo(() => {
-    return orders.filter(o => o.status === 'pending' || !o.status).length;
+    return orders.filter((o) => o.status === 'pending' || !o.status).length;
   }, [orders]);
 
   const acceptedOrdersCount = useMemo(() => {
-    return orders.filter(o => o.status === 'Accepted').length;
+    return orders.filter((o) => o.status === 'Accepted').length;
   }, [orders]);
 
+  const fontStack = isAr
+    ? "'Cairo', 'Plus Jakarta Sans', sans-serif"
+    : "'Plus Jakarta Sans', 'Cairo', sans-serif";
+
   return (
-    <div style={{ fontFamily: isAr ? 'Cairo, sans-serif' : 'Inter, sans-serif' }}>
-      {/* Chart Header Info */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '15px', marginBottom: '24px' }}>
+    <div style={{ fontFamily: fontStack }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: '16px',
+          marginBottom: '24px',
+        }}
+      >
         <div>
-          <h4 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#2D241E', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#B38B6D' }}></span>
-            {isAr ? 'اتجاهات الطلبات (آخر 7 أيام)' : 'Order Trends (Last 7 Days)'}
+          <h4
+            style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: 700,
+              color: '#1E293B',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <Activity size={18} color="#2563EB" strokeWidth={2.4} />
+            <span>
+              {isAr ? 'اتجاهات الطلبات (آخر 7 أيام)' : 'Order Trends (Last 7 Days)'}
+            </span>
           </h4>
-          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#8C7E74' }}>
-            {isAr ? 'رصد دقيق لنشاط البيع وطلبات الشراء في الوقت الفعلي' : 'Real-time tracking of marketplace transactional activity'}
+          <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748B' }}>
+            {isAr
+              ? 'رصد دقيق لنشاط البيع وطلبات الشراء في الوقت الفعلي'
+              : 'Real-time tracking of marketplace transactional activity'}
           </p>
         </div>
-        
-        {/* Visual Stats Badges */}
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <div style={{ background: '#FAF8F6', border: '1px solid #E8E2DE', borderRadius: '12px', padding: '8px 14px', textAlign: 'center', minWidth: '85px' }}>
-            <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#8C7E74', fontWeight: 600, letterSpacing: '0.5px' }}>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              background: '#F7F9FC',
+              border: '1px solid #E5EBF3',
+              borderRadius: '12px',
+              padding: '8px 14px',
+              textAlign: 'center',
+              minWidth: '88px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '10px',
+                textTransform: 'uppercase',
+                color: '#64748B',
+                fontWeight: 700,
+                letterSpacing: '0.5px',
+              }}
+            >
               {isAr ? 'إجمالي الأسبوع' : 'WEEK TOTAL'}
             </div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#2D241E', marginTop: '2px' }}>
+            <div
+              style={{
+                fontSize: '18px',
+                fontWeight: 800,
+                color: '#1E293B',
+                marginTop: '2px',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
               {totalOrdersLast7Days}
             </div>
           </div>
-          <div style={{ background: 'rgba(255, 193, 7, 0.08)', border: '1px solid rgba(255, 193, 7, 0.25)', borderRadius: '12px', padding: '8px 14px', textAlign: 'center', minWidth: '85px' }}>
-            <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#D39E00', fontWeight: 600, letterSpacing: '0.5px' }}>
+          <div
+            style={{
+              background: '#FFFBEB',
+              border: '1px solid #FDE68A',
+              borderRadius: '12px',
+              padding: '8px 14px',
+              textAlign: 'center',
+              minWidth: '88px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '10px',
+                textTransform: 'uppercase',
+                color: '#B45309',
+                fontWeight: 700,
+                letterSpacing: '0.5px',
+              }}
+            >
               {isAr ? 'قيد الانتظار' : 'PENDING'}
             </div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#B38F00', marginTop: '2px' }}>
+            <div
+              style={{
+                fontSize: '18px',
+                fontWeight: 800,
+                color: '#92400E',
+                marginTop: '2px',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
               {activeOrdersCount}
             </div>
           </div>
-          <div style={{ background: 'rgba(76, 175, 80, 0.08)', border: '1px solid rgba(76, 175, 80, 0.25)', borderRadius: '12px', padding: '8px 14px', textAlign: 'center', minWidth: '85px' }}>
-            <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#388E3C', fontWeight: 600, letterSpacing: '0.5px' }}>
+          <div
+            style={{
+              background: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              borderRadius: '12px',
+              padding: '8px 14px',
+              textAlign: 'center',
+              minWidth: '88px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '10px',
+                textTransform: 'uppercase',
+                color: '#1D4ED8',
+                fontWeight: 700,
+                letterSpacing: '0.5px',
+              }}
+            >
               {isAr ? 'المقبولة' : 'ACCEPTED'}
             </div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#2E7D32', marginTop: '2px' }}>
+            <div
+              style={{
+                fontSize: '18px',
+                fontWeight: 800,
+                color: '#1D4ED8',
+                marginTop: '2px',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
               {acceptedOrdersCount}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Line/Area Chart */}
       <div style={{ width: '100%', height: 260, position: 'relative' }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
@@ -146,48 +241,51 @@ export const MasterChart: React.FC<MasterChartProps> = ({ orders, lang }) => {
           >
             <defs>
               <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#B38B6D" stopOpacity={0.25}/>
-                <stop offset="95%" stopColor="#B38B6D" stopOpacity={0.0}/>
+                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.22} />
+                <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E2DE" />
-            <XAxis 
-              dataKey="date" 
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5EBF3" />
+            <XAxis
+              dataKey="date"
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 11, fill: '#8C7E74', fontWeight: 500 }}
+              tick={{ fontSize: 11, fill: '#64748B', fontWeight: 600 }}
               dy={10}
             />
-            <YAxis 
+            <YAxis
               allowDecimals={false}
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 11, fill: '#8C7E74' }}
+              tick={{ fontSize: 11, fill: '#64748B' }}
               dx={5}
             />
             <Tooltip
               contentStyle={{
-                background: '#2D241E',
-                border: 'none',
+                background: '#1E293B',
+                border: '1px solid #334155',
                 borderRadius: '12px',
-                color: '#FAF8F6',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                fontFamily: isAr ? 'Cairo, sans-serif' : 'Inter, sans-serif',
+                color: '#FFFFFF',
+                boxShadow: '0 10px 25px rgba(30, 41, 59, 0.18)',
+                fontFamily: fontStack,
                 fontSize: '12px',
                 padding: '10px 14px',
               }}
-              labelStyle={{ fontWeight: 700, marginBottom: '4px', color: '#FAF8F6' }}
-              itemStyle={{ color: '#E5C3A6', fontWeight: 600, padding: 0 }}
-              formatter={(value: any) => [`${value} ${isAr ? 'طلبات' : 'orders'}`, isAr ? 'عدد الطلبات' : 'Orders']}
+              labelStyle={{ fontWeight: 700, marginBottom: '4px', color: '#FFFFFF' }}
+              itemStyle={{ color: '#93C5FD', fontWeight: 700, padding: 0 }}
+              formatter={(value: any) => [
+                `${value} ${isAr ? 'طلبات' : 'orders'}`,
+                isAr ? 'عدد الطلبات' : 'Orders',
+              ]}
             />
-            <Area 
-              type="monotone" 
-              dataKey="orderCount" 
-              stroke="#B38B6D" 
+            <Area
+              type="monotone"
+              dataKey="orderCount"
+              stroke="#2563EB"
               strokeWidth={2.5}
-              fillOpacity={1} 
-              fill="url(#colorOrders)" 
-              activeDot={{ r: 6, fill: '#B38B6D', strokeWidth: 2, stroke: '#fff' }}
+              fillOpacity={1}
+              fill="url(#colorOrders)"
+              activeDot={{ r: 6, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -196,7 +294,6 @@ export const MasterChart: React.FC<MasterChartProps> = ({ orders, lang }) => {
   );
 };
 
-// Global mounting setup
 let chartRoot: any = null;
 
 export function updateMasterChart(orders: any[], lang: string) {
@@ -209,11 +306,10 @@ export function updateMasterChart(orders: any[], lang: string) {
     }
     chartRoot.render(<MasterChart orders={orders} lang={lang} />);
   } catch (err) {
-    console.error("Failed to render Recharts Master Chart:", err);
+    console.error('Failed to render Recharts Master Chart:', err);
   }
 }
 
-// Attach globally
 if (typeof window !== 'undefined') {
   (window as any).updateMasterChart = updateMasterChart;
 }
