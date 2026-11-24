@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A product listed by a shop.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string", "description": "Base64 image string" },
+        "shopId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "image", "shopId"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A purchase request from a customer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productName": { "type": "string" },
+        "price": { "type": "number" },
+        "shopName": { "type": "string" },
+        "phone": { "type": "string" },
+        "customerName": { "type": "string" },
+        "location": { "type": "string" },
+        "userId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "Accepted", "Refused"] },
+        "masterMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "time": { "type": "string", "description": "Display time string" }
+      },
+      "required": ["productName", "price", "shopName", "phone", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A customer or seller account.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "password": { "type": "string" },
+        "location": { "type": "string" },
+        "shopId": { "type": "string", "description": "Linked shop ID if user is a seller" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "password"]
+    },
+    "ShopSettings": {
+      "title": "Shop Settings",
+      "description": "Visual settings for a shop.",
+      "type": "object",
+      "properties": {
+        "shopId": { "type": "string" },
+        "name": { "type": "string" },
+        "hero": { "type": "string", "description": "Base64 hero image" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/inventory/{productId}": {
+      "schema": "Product",
+      "description": "Collection of all products from all shops."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of all customer orders."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and credentials."
+    },
+    "/shop_settings/{shopId}": {
+      "schema": "ShopSettings",
+      "description": "Customized shop headers and names."
+    }
+  }
+}
