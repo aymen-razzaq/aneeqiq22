@@ -74,6 +74,20 @@ window.closeContactModal = (...args) => closeContactModal(...args);
 window.openTermsModal = (...args) => openTermsModal(...args);
 window.closeTermsModal = (...args) => closeTermsModal(...args);
 window.openCategoryFromHome = (...args) => openCategoryFromHome(...args);
+window.handleMarketplaceSearch = (...args) => handleMarketplaceSearch(...args);
+window.clearMarketplaceSearch = (...args) => clearMarketplaceSearch(...args);
+window.setReviewRating = (...args) => setReviewRating(...args);
+window.submitProductReview = (...args) => submitProductReview(...args);
+window.deleteProductReview = (...args) => deleteProductReview(...args);
+window.openReportModal = (...args) => openReportModal(...args);
+window.closeReportModal = (...args) => closeReportModal(...args);
+window.updateWhatsAppReportLink = (...args) => updateWhatsAppReportLink(...args);
+window.setApprovalsFilter = (...args) => setApprovalsFilter(...args);
+window.approveProductPhoto = (...args) => approveProductPhoto(...args);
+window.rejectProductPhoto = (...args) => rejectProductPhoto(...args);
+window.approveAllProductPhotos = (...args) => approveAllProductPhotos(...args);
+window.approveShopPhoto = (...args) => approveShopPhoto(...args);
+window.rejectShopPhoto = (...args) => rejectShopPhoto(...args);
 
 const firebaseConfig = {
   "projectId": "gen-lang-client-0293781004",
@@ -120,6 +134,18 @@ if (auth) {
 } else {
     hideLoader();
 }
+
+async function testConnection() {
+    if (!db) return;
+    try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+    } catch (error) {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+            console.error("Please check your Firebase configuration.");
+        }
+    }
+}
+testConnection();
 
 // Timeout to hide loader anyway if auth takes too long
 setTimeout(hideLoader, 5000);
@@ -265,6 +291,59 @@ const TRANSLATIONS = {
         tags: "Tags (Comma separated)",
         masterTabOrders: "Incoming Requests",
         masterTabShops: "Manage Shops",
+        masterTabApprovals: "Photo Approvals",
+        searchPlaceholder: "Search shops, products, or tags...",
+        noMatchingShops: "No shops match your search.",
+        noMatchingProducts: "No products match your search.",
+        clearSearch: "Clear search",
+        showingResults: "Showing",
+        resultsLabel: "results",
+        reviewsTitle: "Ratings & Comments",
+        noReviewsYet: "No reviews yet. Be the first to review.",
+        reviewsCountLabel: "reviews",
+        reviewCountSingle: "review",
+        yourRating: "Your Rating",
+        writeCommentPlaceholder: "Share your thoughts about this item...",
+        postReview: "Post Review",
+        loginToReview: "Sign in to rate and comment on this product.",
+        signInNow: "Sign In",
+        reviewPosted: "Review posted!",
+        reviewDeleted: "Review removed.",
+        selectStarFirst: "Please choose a star rating (1–5).",
+        writeCommentFirst: "Please write a comment.",
+        reportProduct: "Report Product",
+        reportStore: "Report Store",
+        reportIssueFooter: "Report Issue (WhatsApp)",
+        reportViaWhatsapp: "Report an Issue via WhatsApp",
+        reportModalTitle: "Report Issue on WhatsApp",
+        reportModalSubtitle: "Your report will be sent directly to our support WhatsApp (07759530163).",
+        reportReasonLabel: "Reason",
+        reportPhoneLabel: "Your Phone (Optional)",
+        reportDetailsLabel: "Details",
+        reportDetailsPlaceholder: "Describe the issue briefly...",
+        sendOnWhatsapp: "Send on WhatsApp (07759530163)",
+        photoApprovalHint: "All uploaded photos are reviewed by Master before appearing on the public store.",
+        pendingApprovalMsg: "Product added! Photos sent to Master for approval.",
+        settingsSavedApproval: "Settings updated! New photos sent to Master for approval.",
+        pendingLabel: "Pending Approval",
+        approvedLabel: "Approved",
+        rejectedLabel: "Rejected",
+        approveBtn: "Approve",
+        rejectBtn: "Reject",
+        approveAllBtn: "Approve All",
+        approvalsQueueTitle: "Photo Approval Queue",
+        approvalsQueueDesc: "Every uploaded product, logo, and banner photo stays hidden from the public web until approved here.",
+        filterPending: "Pending",
+        filterAll: "All",
+        noPendingApprovals: "All photos have been reviewed. No pending approvals right now.",
+        noApprovalsFound: "No uploaded photos found.",
+        storeLogoType: "Store Logo",
+        storeHeroType: "Store Hero Banner",
+        productPhotoUnavailable: "This product's photos are pending Master approval.",
+        logoPendingNote: "New logo pending Master approval",
+        heroPendingNote: "New hero banner pending Master approval",
+        logoRejectedNote: "Last logo upload was rejected by Master",
+        heroRejectedNote: "Last hero banner upload was rejected by Master",
     },
     ar: {
         storeSettings: "إعدادات المتجر",
@@ -379,6 +458,59 @@ const TRANSLATIONS = {
         tags: "الوسوم (مفصولة بفاصلة)",
         masterTabOrders: "الطلبّات الواردة",
         masterTabShops: "إدارة المتاجر",
+        masterTabApprovals: "موافقات الصور",
+        searchPlaceholder: "ابحث عن متجر أو منتج أو وسم...",
+        noMatchingShops: "لا توجد متاجر مطابقة لبحثك.",
+        noMatchingProducts: "لا توجد منتجات مطابقة لبحثك.",
+        clearSearch: "مسح البحث",
+        showingResults: "عرض",
+        resultsLabel: "نتائج",
+        reviewsTitle: "التقييمات والتعليقات",
+        noReviewsYet: "لا توجد تقييمات بعد. كن أول من يقيّم هذا المنتج.",
+        reviewsCountLabel: "تقييمات",
+        reviewCountSingle: "تقييم",
+        yourRating: "تقييمك",
+        writeCommentPlaceholder: "اكتب تعليقك عن هذا المنتج...",
+        postReview: "نشر التقييم",
+        loginToReview: "سجّل الدخول لتتمكن من تقييم المنتج وكتابة تعليق.",
+        signInNow: "تسجيل الدخول",
+        reviewPosted: "تم نشر تقييمك بنجاح!",
+        reviewDeleted: "تم حذف التقييم.",
+        selectStarFirst: "يرجى اختيار عدد النجوم (1–5).",
+        writeCommentFirst: "يرجى كتابة تعليق.",
+        reportProduct: "إبلاغ عن المنتج",
+        reportStore: "إبلاغ عن المتجر",
+        reportIssueFooter: "إبلاغ عن مشكلة (واتساب)",
+        reportViaWhatsapp: "الإبلاغ عن مشكلة عبر واتساب",
+        reportModalTitle: "إبلاغ عبر واتساب",
+        reportModalSubtitle: "سيتم إرسال البلاغ مباشرة إلى فريق الدعم على واتساب (07759530163).",
+        reportReasonLabel: "سبب البلاغ",
+        reportPhoneLabel: "رقم هاتفك (اختياري)",
+        reportDetailsLabel: "التفاصيل",
+        reportDetailsPlaceholder: "اشرح المشكلة باختصار...",
+        sendOnWhatsapp: "إرسال عبر واتساب (07759530163)",
+        photoApprovalHint: "تخضع جميع الصور المرفوعة لمراجعة الماستر قبل ظهورها للعامة.",
+        pendingApprovalMsg: "تمت إضافة المنتج! أُرسلت الصور إلى الماستر للموافقة.",
+        settingsSavedApproval: "تم الحفظ! أُرسلت الصور الجديدة إلى الماستر للموافقة.",
+        pendingLabel: "بانتظار الموافقة",
+        approvedLabel: "تمت الموافقة",
+        rejectedLabel: "مرفوض",
+        approveBtn: "موافقة",
+        rejectBtn: "رفض",
+        approveAllBtn: "موافقة على الكل",
+        approvalsQueueTitle: "قائمة موافقات الصور",
+        approvalsQueueDesc: "تبقى كل صورة منتج أو شعار أو غلاف متجر مخفية عن الموقع العام حتى تتم الموافقة عليها هنا.",
+        filterPending: "قيد الانتظار",
+        filterAll: "الكل",
+        noPendingApprovals: "تمت مراجعة جميع الصور. لا توجد صور بانتظار الموافقة حالياً.",
+        noApprovalsFound: "لا توجد صور مرفوعة.",
+        storeLogoType: "شعار المتجر",
+        storeHeroType: "غلاف المتجر",
+        productPhotoUnavailable: "صور هذا المنتج بانتظار موافقة الماستر.",
+        logoPendingNote: "الشعار الجديد بانتظار موافقة الماستر",
+        heroPendingNote: "الغلاف الجديد بانتظار موافقة الماستر",
+        logoRejectedNote: "تم رفض الشعار الأخير من قبل الماستر",
+        heroRejectedNote: "تم رفض الغلاف الأخير من قبل الماستر",
     }
 
 };
@@ -402,15 +534,27 @@ let isMasterLoggedIn = localStorage.getItem('aneeq_master_session') === 'true';
 let currentProductToBuy = null;
 let currentLang = localStorage.getItem('aneeq_lang') || 'ar';
 let currentCategory = 'all';
+let currentSearchQuery = '';
+let MARKET_PRODUCTS = [];
+let ALL_REVIEWS = [];
+const PRODUCT_RATINGS = {};
+let selectedReviewRating = 5;
+let currentApprovalsFilter = 'pending';
+let currentMasterTab = 'orders';
+let reportContext = { type: 'general', targetName: '', targetId: '' };
+let reviewsUnsubscribe = null;
 const shopSettingsOverrides = {};
 const PRODUCT_CACHE = {};
+const WHATSAPP_REPORT_NUMBER = '9647759530163';
 
 // INIT
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("DOM Content Loaded. Initializing app...");
     try {
-        // 1. Initialize real-time settings listener
+        // 1. Initialize real-time listeners
         initSettingsListener();
+        ensureProductFeedListener();
+        initReviewsListener();
         
         // 2. Set language
         setLanguage(currentLang);
@@ -435,6 +579,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (masterLogin) masterLogin.classList.add('hidden');
             if (masterDashboard) masterDashboard.classList.remove('hidden');
             renderMasterOrders();
+            updateApprovalsBadge();
         }
         
         // Check URL path on load
@@ -519,9 +664,19 @@ function setLanguage(lang) {
         initMarketplace();
         renderProductFeed();
     }
+    if(currentView === 'shop' && activeShop) {
+        openShop(activeShop.id);
+    }
     if(currentView === 'basket') handleBasketAutoTrack();
-    if(currentView === 'master') renderMasterOrders();
+    if(currentView === 'master') {
+        renderMasterOrders();
+        renderMasterShops();
+        renderMasterApprovals();
+    }
     if(loggedInShopId) renderAdminInventory();
+    if(currentProductToBuy && !document.getElementById('buy-modal')?.classList.contains('hidden')) {
+        renderProductReviews(currentProductToBuy.id);
+    }
 }
 
 function updateStaticTranslations() {
@@ -608,8 +763,12 @@ function updateStaticTranslations() {
         
         const mpFeedTitle = document.getElementById('mp-feed-title');
         const mpFeedMeta = document.getElementById('mp-feed-meta');
+        const mpSearchInput = document.getElementById('marketplace-search');
+        const mpSearchClear = document.getElementById('marketplace-search-clear');
         if (mpFeedTitle) mpFeedTitle.innerText = t.marketplaceFeed;
-        if (mpFeedMeta) mpFeedMeta.innerText = t.showingPieces;
+        if (mpFeedMeta && !currentSearchQuery.trim()) mpFeedMeta.innerText = t.showingPieces;
+        if (mpSearchInput) mpSearchInput.placeholder = t.searchPlaceholder;
+        if (mpSearchClear) mpSearchClear.setAttribute('aria-label', t.clearSearch);
 
         // Back Buttons
         document.querySelectorAll('.btn-back span').forEach(span => {
@@ -620,16 +779,18 @@ function updateStaticTranslations() {
         });
 
         // Modal
-        const buyModal = document.querySelector('.modal-content');
+        const buyModal = document.getElementById('buy-modal');
         if(buyModal) {
             const bmt = document.getElementById('buy-modal-title');
             const bmh = document.getElementById('buy-modal-hint');
             const cl = document.getElementById('customer-location');
+            const bconfirm = document.getElementById('buy-confirm-btn');
+            const revTitle = document.getElementById('reviews-section-title');
             if (bmt) bmt.innerText = t.purchaseRequest;
             if (bmh) bmh.innerText = t.deliveryHint;
             if (cl) cl.placeholder = t.enterLocation;
-            const bconfirm = buyModal.querySelector('.btn-primary');
             if (bconfirm) bconfirm.innerText = t.confirmRequest;
+            if (revTitle) revTitle.innerText = t.reviewsTitle;
         }
         
         // Home
@@ -802,12 +963,27 @@ function updateStaticTranslations() {
             
             const tabOrders = document.getElementById('master-tab-orders');
             const tabShops = document.getElementById('master-tab-shops');
+            const tabApprovalsText = document.getElementById('master-tab-approvals-text');
             if (tabOrders) tabOrders.innerText = t.masterTabOrders;
             if (tabShops) tabShops.innerText = t.masterTabShops;
+            if (tabApprovalsText) tabApprovalsText.innerText = t.masterTabApprovals;
+
+            const appTitle = document.getElementById('lbl-master-approvals-title');
+            const appDesc = document.getElementById('lbl-master-approvals-desc');
+            const fPending = document.getElementById('approvals-filter-pending');
+            const fAll = document.getElementById('approvals-filter-all');
+            if (appTitle) appTitle.innerText = t.approvalsQueueTitle;
+            if (appDesc) appDesc.innerText = t.approvalsQueueDesc;
+            if (fPending) fPending.innerText = t.filterPending;
+            if (fAll) fAll.innerText = t.filterAll;
             
             const logoutBtn = masterDashboard.querySelector('.logout-btn');
             if (logoutBtn) logoutBtn.innerText = t.logout;
         }
+
+        const photoHint = document.getElementById('seller-photo-approval-hint');
+        if (photoHint) photoHint.innerText = t.photoApprovalHint;
+        updateReportModalTranslations();
         
         // Toast
         const toast = document.getElementById('toast');
@@ -857,6 +1033,8 @@ function updateStaticTranslations() {
                 flp[0].innerText = t.contactUs;
                 flp[1].innerText = t.terms;
             }
+            const footerReport = document.getElementById('footer-report-link');
+            if (footerReport) footerReport.innerText = t.reportIssueFooter;
             if (fb) fb.innerText = `© 2026 ${t.brandName}. ${t.rights}`;
             
             updateContactModalTranslations();
@@ -909,7 +1087,11 @@ function showView(viewId, skipState = false) {
         initMarketplace();
         renderProductFeed();
     }
-    if(viewId === 'master') renderMasterOrders();
+    if(viewId === 'master') {
+        renderMasterOrders();
+        updateApprovalsBadge();
+        if (currentMasterTab === 'approvals') renderMasterApprovals();
+    }
     
     window.scrollTo(0,0);
 }
@@ -920,6 +1102,56 @@ function openCategoryFromHome(cat) {
 }
 
 // UTILITIES
+function escapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getProductAllImages(p) {
+    if (!p) return [];
+    if (Array.isArray(p.images) && p.images.length > 0) return p.images;
+    if (p.image) return [p.image];
+    return [];
+}
+
+function getProductPhotoStatuses(p) {
+    const imgs = getProductAllImages(p);
+    if (Array.isArray(p.photoStatuses) && p.photoStatuses.length === imgs.length) {
+        return p.photoStatuses;
+    }
+    if (p.photoStatus === 'pending' || p.photoStatus === 'rejected') {
+        return imgs.map(() => p.photoStatus);
+    }
+    return imgs.map(() => 'approved');
+}
+
+function getApprovedProductImages(p) {
+    if (!p) return [];
+    const imgs = getProductAllImages(p);
+    if (imgs.length === 0) return [];
+    const statuses = getProductPhotoStatuses(p);
+    return imgs.filter((_, idx) => statuses[idx] === 'approved');
+}
+
+function getProductRatingSummary(productId) {
+    return PRODUCT_RATINGS[productId] || { avg: 0, count: 0 };
+}
+
+function renderStarIcons(rating, size = 14) {
+    const rounded = Math.round(Number(rating) || 0);
+    let html = '';
+    for (let i = 1; i <= 5; i++) {
+        const fill = i <= rounded ? '#F59E0B' : 'none';
+        const stroke = i <= rounded ? '#F59E0B' : '#CBD5E1';
+        html += `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+    }
+    return html;
+}
+
 function initSettingsListener() {
     if (!db) return;
     onSnapshot(collection(db, "shop_settings"), (snapshot) => {
@@ -980,7 +1212,12 @@ function initSettingsListener() {
 
         // Always render updated shops to both views to ensure immediate dynamic removal/syncing
         initMarketplace();
+        renderFilteredProducts();
         renderMasterShops();
+        updateApprovalsBadge();
+        if (isMasterLoggedIn && currentMasterTab === 'approvals') {
+            renderMasterApprovals();
+        }
 
         if (currentView === 'shop' && activeShop) {
             const existsInShops = SHOPS.find(s => s.id === activeShop.id);
@@ -991,8 +1228,8 @@ function initSettingsListener() {
                 activeShop = null;
                 showView('marketplace');
             } else {
-                const heroImage = shopSettingsOverrides[activeShop.id]?.hero || activeShop.hero;
-                const shopLogo = shopSettingsOverrides[activeShop.id]?.logo || activeShop.logo;
+                const heroImage = shopSettingsOverrides[activeShop.id]?.hero || activeShop.hero || defaultShopHero;
+                const shopLogo = shopSettingsOverrides[activeShop.id]?.logo || activeShop.logo || defaultShopLogo;
                 const shopName = shopSettingsOverrides[activeShop.id]?.name || activeShop.name;
                 
                 const heroImgEl = document.querySelector('#view-shop .shop-hero-img');
@@ -1011,18 +1248,75 @@ function initSettingsListener() {
     });
 }
 
+function matchesSearchQuery(textOrList, q) {
+    if (!q) return true;
+    if (Array.isArray(textOrList)) {
+        return textOrList.some(item => String(item || '').toLowerCase().includes(q));
+    }
+    return String(textOrList || '').toLowerCase().includes(q);
+}
+
+function handleMarketplaceSearch(val) {
+    currentSearchQuery = (val || '').trim();
+    const clearBtn = document.getElementById('marketplace-search-clear');
+    if (clearBtn) {
+        clearBtn.classList.toggle('hidden', currentSearchQuery.length === 0);
+    }
+    initMarketplace();
+    renderFilteredProducts();
+}
+
+function clearMarketplaceSearch() {
+    currentSearchQuery = '';
+    const input = document.getElementById('marketplace-search');
+    const clearBtn = document.getElementById('marketplace-search-clear');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+    if (clearBtn) clearBtn.classList.add('hidden');
+    initMarketplace();
+    renderFilteredProducts();
+}
+
 function initMarketplace() {
     const list = document.getElementById('shops-list');
     if (!list) return;
+    const t = TRANSLATIONS[currentLang];
+    const q = currentSearchQuery.trim().toLowerCase();
 
     const filteredShops = SHOPS.filter(shop => {
-        const shopCat = shopSettingsOverrides[shop.id]?.category || shop.category;
+        const settings = shopSettingsOverrides[shop.id] || {};
+        const shopCat = settings.category || shop.category;
         if (!shopCat) return false; // Hide uncategorized stores
-        return currentCategory === 'all' || shopCat === currentCategory;
+        if (currentCategory !== 'all' && shopCat !== currentCategory) return false;
+
+        if (!q) return true;
+
+        const shopName = settings.name || shop.name || '';
+        const shopTags = Array.isArray(settings.tags) ? settings.tags : (Array.isArray(shop.tags) ? shop.tags : []);
+        const directMatch =
+            matchesSearchQuery(shopName, q) ||
+            matchesSearchQuery(shopCat, q) ||
+            matchesSearchQuery(shopTags, q);
+        if (directMatch) return true;
+
+        // Also match shop if any of its approved products match by name or tags
+        const shopProducts = MARKET_PRODUCTS.length ? MARKET_PRODUCTS : Object.values(PRODUCT_CACHE);
+        return shopProducts.some(p =>
+            p.shopId === shop.id &&
+            getApprovedProductImages(p).length > 0 &&
+            (currentCategory === 'all' || p.category === currentCategory) &&
+            (matchesSearchQuery(p.name, q) || matchesSearchQuery(p.tags, q))
+        );
     });
 
+    if (filteredShops.length === 0 && q) {
+        list.innerHTML = `<div class="mp-empty-state">${t.noMatchingShops}</div>`;
+        return;
+    }
+
     list.innerHTML = filteredShops.map(shop => {
-        const t = TRANSLATIONS[currentLang];
         const shopName = shopSettingsOverrides[shop.id]?.name || shop.name;
         const shopLogo = shopSettingsOverrides[shop.id]?.logo || shop.logo || defaultShopLogo;
         return `
@@ -1051,79 +1345,135 @@ function filterByCategory(cat) {
         }
     });
     initMarketplace();
-    renderProductFeed();
+    if (productFeedUnsubscribe) {
+        renderFilteredProducts();
+    } else {
+        renderProductFeed();
+    }
 }
 
 let productFeedUnsubscribe = null;
 
-function renderProductFeed() {
-    if (!db) return;
-    if (productFeedUnsubscribe) productFeedUnsubscribe();
+function renderProductRatingInline(productId) {
+    const summary = getProductRatingSummary(productId);
+    if (!summary.count) return '';
+    return `
+        <div class="product-rating-line">
+            <span class="product-rating-star">★</span>
+            <span>${summary.avg.toFixed(1)}</span>
+            <span class="product-rating-count">(${summary.count})</span>
+        </div>
+    `;
+}
+
+function renderFilteredProducts() {
     const t = TRANSLATIONS[currentLang];
     const feedContainer = document.getElementById('marketplace-feed');
-    if(!feedContainer) return;
+    const mpFeedMeta = document.getElementById('mp-feed-meta');
+    if (!feedContainer) return;
 
-    // Use onSnapshot for real-time updates
+    const q = currentSearchQuery.trim().toLowerCase();
+    const filteredProducts = [];
+
+    MARKET_PRODUCTS.forEach(p => {
+        if (currentCategory !== 'all' && p.category !== currentCategory) return;
+        const approvedImgs = getApprovedProductImages(p);
+        if (approvedImgs.length === 0) return; // Require Master approval before showing on public web
+
+        const shop = SHOPS.find(s => s.id === p.shopId);
+        const shopCat = shop ? (shopSettingsOverrides[p.shopId]?.category || shop.category) : null;
+        if (!shop || !shopCat) return;
+
+        const shopName = shopSettingsOverrides[p.shopId]?.name || shop.name;
+        const shopLogo = shopSettingsOverrides[p.shopId]?.logo || shop.logo;
+
+        if (q) {
+            const matched =
+                matchesSearchQuery(p.name, q) ||
+                matchesSearchQuery(p.tags, q) ||
+                matchesSearchQuery(shopName, q) ||
+                matchesSearchQuery(p.category, q);
+            if (!matched) return;
+        }
+
+        filteredProducts.push({ ...p, shopName, shopLogo, approvedCover: approvedImgs[0] });
+    });
+
+    if (mpFeedMeta) {
+        mpFeedMeta.innerText = q
+            ? `${t.showingResults} ${filteredProducts.length} ${t.resultsLabel}`
+            : t.showingPieces;
+    }
+
+    if (filteredProducts.length === 0) {
+        feedContainer.innerHTML = q
+            ? `<div class="mp-empty-state">
+                    <p style="margin: 0 0 12px;">${t.noMatchingProducts}</p>
+                    <button type="button" class="btn-outline" onclick="clearMarketplaceSearch()" style="min-height: 38px; padding: 8px 16px; font-size: 13px;">${t.clearSearch}</button>
+               </div>`
+            : `<p style="text-align:center; color:#64748B; padding:40px; grid-column: 1/-1;">${t.noItemsMarket}</p>`;
+        return;
+    }
+
+    feedContainer.innerHTML = filteredProducts.map(p => `
+        <div class="product-card" onclick="openBuyModal('${p.id}')">
+            <div class="product-img-wrapper">
+                <img src="${p.approvedCover || defaultShopHero}" alt="${escapeHtml(p.name)}" onerror="this.src='${defaultShopHero}'">
+            </div>
+            <div class="product-info-top">
+                <div class="product-meta">
+                    <span class="product-shop-tag" onclick="event.stopPropagation(); openShop('${p.shopId}')">
+                        ${escapeHtml(p.shopName)}
+                    </span>
+                </div>
+                <h3>${escapeHtml(p.name)}</h3>
+                ${renderProductRatingInline(p.id)}
+            </div>
+            <div class="product-info-bottom">
+                <div>
+                    ${p.description ? `<p class="product-desc-line">${escapeHtml(p.description)}</p>` : ''}
+                    ${(p.tags && p.tags.length) ? `<div class="product-tags-inline">${p.tags.map(tag => escapeHtml(tag)).join(' · ')}</div>` : ''}
+                </div>
+                <div class="product-card-footer">
+                    <div class="product-price">${Number(p.price || 0).toLocaleString()} د.ع</div>
+                    <button class="btn-buy-icon" aria-label="${t.buyNow}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function ensureProductFeedListener() {
+    if (!db || productFeedUnsubscribe) return;
     const q = query(collection(db, "inventory"));
     productFeedUnsubscribe = onSnapshot(q, (snapshot) => {
-        let allProducts = [];
+        const items = [];
         snapshot.forEach(docSnap => {
             const p = { ...docSnap.data(), id: docSnap.id };
             PRODUCT_CACHE[p.id] = p;
-            if(currentCategory === 'all' || p.category === currentCategory) {
-                const shop = SHOPS.find(s => s.id === p.shopId);
-                const shopCat = shop ? (shopSettingsOverrides[p.shopId]?.category || shop.category) : null;
-                // Only show products whose shop is active and categorized (not hidden)
-                if(shop && shopCat) {
-                    const shopName = shopSettingsOverrides[p.shopId]?.name || shop.name;
-                    const shopLogo = shopSettingsOverrides[p.shopId]?.logo || shop.logo;
-                    allProducts.push({ ...p, shopName, shopLogo });
-                }
-            }
+            items.push(p);
         });
-
-        if(allProducts.length === 0) {
-            feedContainer.innerHTML = `<p style="text-align:center; color:#999; padding:40px; grid-column: 1/-1;">${t.noItemsMarket}</p>`;
-            return;
+        MARKET_PRODUCTS = items;
+        initMarketplace();
+        renderFilteredProducts();
+        updateApprovalsBadge();
+        if (isMasterLoggedIn && currentMasterTab === 'approvals') {
+            renderMasterApprovals();
         }
-
-        // Shuffle for variety if 'all', otherwise sort by recent
-        if(currentCategory === 'all') {
-            allProducts.sort(() => Math.random() - 0.5);
-        } else {
-            allProducts.reverse();
-        }
-
-        feedContainer.innerHTML = allProducts.map(p => `
-            <div class="product-card" onclick="openBuyModal('${p.id}')">
-                <div class="product-img-wrapper">
-                    <img src="${p.image || defaultShopHero}" alt="${p.name}" onerror="this.src='${defaultShopHero}'">
-                </div>
-                <div class="product-info-top">
-                    <div class="product-meta">
-                        <span class="product-shop-tag" onclick="event.stopPropagation(); openShop('${p.shopId}')">
-                            ${p.shopName}
-                        </span>
-                    </div>
-                    <h3>${p.name}</h3>
-                </div>
-                <div class="product-info-bottom">
-                    <div>
-                        ${p.description ? `<p class="product-desc-line">${p.description}</p>` : ''}
-                        ${(p.tags && p.tags.length) ? `<div class="product-tags-inline">${p.tags.join(' · ')}</div>` : ''}
-                    </div>
-                    <div class="product-card-footer">
-                        <div class="product-price">${Number(p.price || 0).toLocaleString()} د.ع</div>
-                        <button class="btn-buy-icon" aria-label="${t.buyNow}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
     }, (error) => {
         handleFirestoreError(error, OperationType.GET, "inventory");
     });
+}
+
+function renderProductFeed() {
+    if (!db) return;
+    if (productFeedUnsubscribe) {
+        renderFilteredProducts();
+        return;
+    }
+    ensureProductFeedListener();
 }
 
 function buyFromFeed(shopId, pId) {
@@ -1135,26 +1485,35 @@ function openShop(shopId) {
     const shop = SHOPS.find(s => s.id === shopId);
     activeShop = shop;
     showView('shop');
+    const t = TRANSLATIONS[currentLang];
     
     const heroImage = shopSettingsOverrides[shopId]?.hero || shop?.hero || defaultShopHero;
     const shopLogo = shopSettingsOverrides[shopId]?.logo || shop?.logo || defaultShopLogo;
-    const shopName = shopSettingsOverrides[shopId]?.name || shop?.name;
+    const shopName = shopSettingsOverrides[shopId]?.name || shop?.name || '';
+    const safeShopName = escapeHtml(shopName);
     
     document.getElementById('shop-header-container').innerHTML = `
         <div class="shop-profile-header">
             <div class="shop-hero-banner">
                 <img class="shop-hero-bg-blur" src="${heroImage}" alt="" onerror="this.src='${defaultShopHero}'">
-                <img class="shop-hero-img" src="${heroImage}" alt="${shopName} Hero Banner" onerror="this.src='${defaultShopHero}'">
+                <img class="shop-hero-img" src="${heroImage}" alt="${safeShopName} Hero Banner" onerror="this.src='${defaultShopHero}'">
                 <div class="shop-hero-overlay"></div>
             </div>
             
             <div class="shop-info-bar">
                 <div class="shop-logo-container">
-                    <img class="shop-logo-img" src="${shopLogo}" alt="${shopName} Logo" onerror="this.src='${defaultShopLogo}'">
+                    <img class="shop-logo-img" src="${shopLogo}" alt="${safeShopName} Logo" onerror="this.src='${defaultShopLogo}'">
                 </div>
                 
                 <div class="shop-title-details">
-                    <h1 class="shop-name-p">${shopName}</h1>
+                    <h1 class="shop-name-p">${safeShopName}</h1>
+                </div>
+
+                <div class="shop-report-wrap">
+                    <button type="button" class="btn-report-inline" onclick="openReportModal('shop', '${safeShopName}', '${shopId}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
+                        <span>${t.reportStore}</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -1184,10 +1543,13 @@ function renderProducts(shopId) {
     const q = query(collection(db, "inventory"), where("shopId", "==", shopId));
     shopProductsUnsubscribe = onSnapshot(q, (snapshot) => {
         let shopProducts = [];
-        snapshot.forEach(doc => {
-            const p = { ...doc.data(), id: doc.id };
+        snapshot.forEach(docSnap => {
+            const p = { ...docSnap.data(), id: docSnap.id };
             PRODUCT_CACHE[p.id] = p;
-            shopProducts.push(p);
+            const approvedImgs = getApprovedProductImages(p);
+            if (approvedImgs.length > 0) {
+                shopProducts.push({ ...p, approvedCover: approvedImgs[0] });
+            }
         });
 
         if(shopProducts.length === 0) {
@@ -1198,15 +1560,16 @@ function renderProducts(shopId) {
         container.innerHTML = shopProducts.map(p => `
             <div class="product-card" onclick="openBuyModal('${p.id}')">
                 <div class="product-img-wrapper">
-                    <img src="${p.image || defaultShopHero}" alt="${p.name}" onerror="this.src='${defaultShopHero}'">
+                    <img src="${p.approvedCover || defaultShopHero}" alt="${escapeHtml(p.name)}" onerror="this.src='${defaultShopHero}'">
                 </div>
                 <div class="product-info-top">
-                    <h3>${p.name}</h3>
+                    <h3>${escapeHtml(p.name)}</h3>
+                    ${renderProductRatingInline(p.id)}
                 </div>
                 <div class="product-info-bottom">
                     <div>
-                        ${p.description ? `<p class="product-desc-line">${p.description}</p>` : ''}
-                        ${(p.tags && p.tags.length) ? `<div class="product-tags-inline">${p.tags.join(' · ')}</div>` : ''}
+                        ${p.description ? `<p class="product-desc-line">${escapeHtml(p.description)}</p>` : ''}
+                        ${(p.tags && p.tags.length) ? `<div class="product-tags-inline">${p.tags.map(tag => escapeHtml(tag)).join(' · ')}</div>` : ''}
                     </div>
                     <div class="product-card-footer">
                         <div class="product-price">${Number(p.price || 0).toLocaleString()} د.ع</div>
@@ -1222,13 +1585,26 @@ function renderProducts(shopId) {
     });
 }
 
-// BUY MODAL
-function openBuyModal(productId) {
+// BUY MODAL & PRODUCT DETAIL
+function openBuyModal(productId, allowUnapproved = false) {
     const p = PRODUCT_CACHE[productId];
     if (!p) return;
-    
+    const t = TRANSLATIONS[currentLang];
+
+    const approvedImages = getApprovedProductImages(p);
+    const images = allowUnapproved
+        ? (getProductAllImages(p).length ? getProductAllImages(p) : [defaultShopHero])
+        : approvedImages;
+
+    if (images.length === 0) {
+        showToast(t.productPhotoUnavailable);
+        return;
+    }
+
     currentProductToBuy = p;
-    const images = (p.images && p.images.length) ? p.images : [p.image || defaultShopHero];
+    selectedReviewRating = 5;
+    const ratingSummary = getProductRatingSummary(p.id);
+    const safeName = escapeHtml(p.name);
     
     document.getElementById('modal-product-info').innerHTML = `
         <div style="margin-bottom:18px;">
@@ -1243,13 +1619,26 @@ function openBuyModal(productId) {
                         `).join('')}
                     </div>
                 ` : ''}
-                <div style="margin-top: 14px;">
-                    <h3 style="margin:0; font-size:22px; font-weight: 800; color:#1E293B;">${p.name}</h3>
-                    <div style="color:#2563EB; font-weight:800; font-size:20px; margin-top: 4px; font-variant-numeric:tabular-nums;">${Number(p.price || 0).toLocaleString()} د.ع</div>
+                <div class="modal-product-head-row">
+                    <div>
+                        <h3 style="margin:0; font-size:22px; font-weight: 800; color:#1E293B;">${safeName}</h3>
+                        <div style="color:#2563EB; font-weight:800; font-size:20px; margin-top: 4px; font-variant-numeric:tabular-nums;">${Number(p.price || 0).toLocaleString()} د.ع</div>
+                        ${ratingSummary.count > 0 ? `
+                            <div class="product-rating-line" style="margin-top:6px;">
+                                <span class="stars-row">${renderStarIcons(ratingSummary.avg, 14)}</span>
+                                <span>${ratingSummary.avg.toFixed(1)}</span>
+                                <span class="product-rating-count">(${ratingSummary.count})</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <button type="button" class="btn-report-inline" onclick="openReportModal('product', '${safeName}', '${p.id}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
+                        <span>${t.reportProduct}</span>
+                    </button>
                 </div>
             </div>
-            ${p.description ? `<p style="font-size:14px; color:#64748B; line-height:1.6; margin:0 0 12px;">${p.description}</p>` : ''}
-            ${(p.tags && p.tags.length) ? `<div style="font-size:12px; font-weight:600; color:#64748B;">${p.tags.join(' · ')}</div>` : ''}
+            ${p.description ? `<p style="font-size:14px; color:#64748B; line-height:1.6; margin:0 0 12px;">${escapeHtml(p.description)}</p>` : ''}
+            ${(p.tags && p.tags.length) ? `<div style="font-size:12px; font-weight:600; color:#64748B;">${p.tags.map(tag => escapeHtml(tag)).join(' · ')}</div>` : ''}
         </div>
     `;
     
@@ -1267,21 +1656,9 @@ function openBuyModal(productId) {
     if(loggedInUser && loggedInUser.location) {
         document.getElementById('customer-location').value = loggedInUser.location;
     }
-    
-    document.getElementById('buy-modal').classList.remove('hidden');
 
-    // Optimize for mobile: scroll down to ordering fields if modal is long
-    if (window.innerWidth < 600) {
-        setTimeout(() => {
-            const modalContent = document.querySelector('#buy-modal .modal-content');
-            if (modalContent) {
-                modalContent.scrollTo({
-                    top: modalContent.scrollHeight,
-                    behavior: 'smooth'
-                });
-            }
-        }, 300);
-    }
+    renderProductReviews(p.id);
+    document.getElementById('buy-modal').classList.remove('hidden');
 }
 
 function openContactModal() {
@@ -1307,6 +1684,8 @@ function updateContactModalTranslations() {
     const phoneLabel = document.getElementById('contact-phone-label');
     const emailLabel = document.getElementById('contact-email-label');
     const closeBtn = document.getElementById('contact-close-btn');
+    const reportText = document.getElementById('contact-report-text');
+    const t = TRANSLATIONS[currentLang];
     
     if (window.currentLang === 'ar') {
         if (title) title.innerText = "اتصل بنا";
@@ -1319,6 +1698,288 @@ function updateContactModalTranslations() {
         if (emailLabel) emailLabel.innerText = "Email Address";
         if (closeBtn) closeBtn.innerText = "Close";
     }
+    if (reportText && t) reportText.innerText = t.reportViaWhatsapp;
+}
+
+// REVIEWS & STAR RATINGS
+function initReviewsListener() {
+    if (!db || reviewsUnsubscribe) return;
+    reviewsUnsubscribe = onSnapshot(collection(db, "reviews"), (snapshot) => {
+        const list = [];
+        const ratingMap = {};
+        snapshot.forEach(docSnap => {
+            const r = { ...docSnap.data(), id: docSnap.id };
+            list.push(r);
+            if (r.productId) {
+                if (!ratingMap[r.productId]) ratingMap[r.productId] = { sum: 0, count: 0 };
+                ratingMap[r.productId].sum += Number(r.rating) || 0;
+                ratingMap[r.productId].count += 1;
+            }
+        });
+        ALL_REVIEWS = list;
+        for (const k in PRODUCT_RATINGS) delete PRODUCT_RATINGS[k];
+        Object.keys(ratingMap).forEach(pid => {
+            const entry = ratingMap[pid];
+            PRODUCT_RATINGS[pid] = {
+                avg: entry.count ? entry.sum / entry.count : 0,
+                count: entry.count
+            };
+        });
+
+        renderFilteredProducts();
+        if (currentView === 'shop' && activeShop) {
+            renderProducts(activeShop.id);
+        }
+        if (currentProductToBuy && !document.getElementById('buy-modal')?.classList.contains('hidden')) {
+            renderProductReviews(currentProductToBuy.id);
+        }
+    }, (error) => {
+        handleFirestoreError(error, OperationType.GET, "reviews");
+    });
+}
+
+function setReviewRating(val) {
+    selectedReviewRating = Math.min(5, Math.max(1, Number(val) || 5));
+    document.querySelectorAll('#review-star-picker .star-picker-btn').forEach((btn, idx) => {
+        const isActive = idx + 1 <= selectedReviewRating;
+        btn.classList.toggle('active', isActive);
+        const poly = btn.querySelector('polygon');
+        if (poly) {
+            poly.setAttribute('fill', isActive ? '#F59E0B' : 'none');
+            poly.setAttribute('stroke', isActive ? '#F59E0B' : '#CBD5E1');
+        }
+    });
+}
+
+function renderProductReviews(productId) {
+    const t = TRANSLATIONS[currentLang];
+    const titleEl = document.getElementById('reviews-section-title');
+    const summaryEl = document.getElementById('reviews-summary-line');
+    const composerEl = document.getElementById('review-composer-container');
+    const listEl = document.getElementById('product-reviews-list');
+    if (!composerEl || !listEl) return;
+
+    if (titleEl) titleEl.innerText = t.reviewsTitle;
+
+    const productReviews = ALL_REVIEWS
+        .filter(r => r.productId === productId)
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+    const summary = getProductRatingSummary(productId);
+    if (summaryEl) {
+        if (summary.count > 0) {
+            const countWord = summary.count === 1 ? t.reviewCountSingle : t.reviewsCountLabel;
+            summaryEl.innerHTML = `
+                <span class="reviews-avg-score">${summary.avg.toFixed(1)}</span>
+                <span class="stars-row">${renderStarIcons(summary.avg, 15)}</span>
+                <span>(${summary.count} ${countWord})</span>
+            `;
+        } else {
+            summaryEl.innerHTML = `<span>${t.noReviewsYet}</span>`;
+        }
+    }
+
+    if (!loggedInUser) {
+        composerEl.innerHTML = `
+            <div class="review-login-prompt">
+                <p>${t.loginToReview}</p>
+                <button type="button" class="btn-outline" style="min-height: 36px; padding: 7px 14px; font-size: 13px;" onclick="closeModal(); showView('account');">${t.signInNow}</button>
+            </div>
+        `;
+    } else {
+        let starsHtml = '';
+        for (let i = 1; i <= 5; i++) {
+            const active = i <= selectedReviewRating;
+            starsHtml += `
+                <button type="button" class="star-picker-btn ${active ? 'active' : ''}" onclick="setReviewRating(${i})" aria-label="${i} stars">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="${active ? '#F59E0B' : 'none'}" stroke="${active ? '#F59E0B' : '#CBD5E1'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </button>
+            `;
+        }
+        composerEl.innerHTML = `
+            <div class="review-composer">
+                <div class="review-composer-top">
+                    <span class="review-composer-label">${t.yourRating}: <strong>${escapeHtml(loggedInUser.name || '')}</strong></span>
+                    <div id="review-star-picker" class="star-picker">${starsHtml}</div>
+                </div>
+                <textarea id="review-comment-input" placeholder="${t.writeCommentPlaceholder}" style="min-height: 68px; margin-bottom: 10px;"></textarea>
+                <button type="button" onclick="submitProductReview()" class="btn-primary" style="min-height: 40px; padding: 10px 18px;">${t.postReview}</button>
+            </div>
+        `;
+    }
+
+    if (productReviews.length === 0) {
+        listEl.innerHTML = '';
+        return;
+    }
+
+    listEl.innerHTML = productReviews.map(r => {
+        const canDelete = (loggedInUser && loggedInUser.phone === r.userId) || isMasterLoggedIn;
+        const dateStr = r.createdAt?.seconds
+            ? new Date(r.createdAt.seconds * 1000).toLocaleDateString(currentLang === 'ar' ? 'ar-IQ' : 'en-US')
+            : (r.displayDate || '');
+        return `
+            <div class="review-item">
+                <div class="review-item-head">
+                    <div>
+                        <span class="review-author">${escapeHtml(r.userName || 'User')}</span>
+                        ${dateStr ? `<span class="review-date"> · ${escapeHtml(dateStr)}</span>` : ''}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="stars-row">${renderStarIcons(r.rating, 13)}</span>
+                        ${canDelete ? `<button type="button" class="review-delete-btn" onclick="deleteProductReview('${r.id}')">${t.delete}</button>` : ''}
+                    </div>
+                </div>
+                <p class="review-comment-text">${escapeHtml(r.comment || '')}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+async function submitProductReview() {
+    if (!db || !currentProductToBuy) return;
+    const t = TRANSLATIONS[currentLang];
+    if (!loggedInUser) {
+        showToast(t.loginToReview);
+        closeModal();
+        showView('account');
+        return;
+    }
+    const commentEl = document.getElementById('review-comment-input');
+    const comment = commentEl ? commentEl.value.trim() : '';
+    if (!selectedReviewRating || selectedReviewRating < 1 || selectedReviewRating > 5) {
+        showToast(t.selectStarFirst);
+        return;
+    }
+    if (!comment) {
+        showToast(t.writeCommentFirst);
+        return;
+    }
+
+    const reviewData = {
+        productId: currentProductToBuy.id,
+        shopId: currentProductToBuy.shopId || '',
+        userId: loggedInUser.phone,
+        userName: loggedInUser.name || loggedInUser.phone,
+        rating: Number(selectedReviewRating),
+        comment: comment.slice(0, 600),
+        displayDate: new Date().toLocaleDateString(currentLang === 'ar' ? 'ar-IQ' : 'en-US'),
+        createdAt: serverTimestamp()
+    };
+
+    try {
+        await addDoc(collection(db, "reviews"), reviewData);
+        if (commentEl) commentEl.value = '';
+        selectedReviewRating = 5;
+        showToast(t.reviewPosted);
+    } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, "reviews");
+    }
+}
+
+async function deleteProductReview(reviewId) {
+    if (!db) return;
+    const t = TRANSLATIONS[currentLang];
+    try {
+        await deleteDoc(doc(db, "reviews", reviewId));
+        showToast(t.reviewDeleted);
+    } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `reviews/${reviewId}`);
+    }
+}
+
+// WHATSAPP REPORT SYSTEM (07759530163)
+function updateReportModalTranslations() {
+    const t = TRANSLATIONS[currentLang];
+    if (!t) return;
+    const title = document.getElementById('report-modal-title');
+    const sub = document.getElementById('report-modal-subtitle');
+    const lblReason = document.getElementById('lbl-report-reason');
+    const lblPhone = document.getElementById('lbl-report-phone');
+    const lblDetails = document.getElementById('lbl-report-details');
+    const detailsInput = document.getElementById('report-details');
+    const btnText = document.getElementById('whatsapp-report-btn-text');
+    const reasonSel = document.getElementById('report-reason');
+
+    if (title) title.innerText = t.reportModalTitle;
+    if (sub) sub.innerText = t.reportModalSubtitle;
+    if (lblReason) lblReason.innerText = t.reportReasonLabel;
+    if (lblPhone) lblPhone.innerText = t.reportPhoneLabel;
+    if (lblDetails) lblDetails.innerText = t.reportDetailsLabel;
+    if (detailsInput) detailsInput.placeholder = t.reportDetailsPlaceholder;
+    if (btnText) btnText.innerText = t.sendOnWhatsapp;
+
+    if (reasonSel && reasonSel.options.length >= 5) {
+        if (currentLang === 'ar') {
+            reasonSel.options[0].text = 'جودة المنتج أو عدم مطابقته';
+            reasonSel.options[1].text = 'سعر خاطئ أو معلومات مضللة';
+            reasonSel.options[2].text = 'صورة أو محتوى غير مناسب';
+            reasonSel.options[3].text = 'مشكلة في الطلب أو التوصيل';
+            reasonSel.options[4].text = 'مشكلة أخرى';
+        } else {
+            reasonSel.options[0].text = 'Product quality or mismatch';
+            reasonSel.options[1].text = 'Wrong price or misleading info';
+            reasonSel.options[2].text = 'Inappropriate photo or listing';
+            reasonSel.options[3].text = 'Order or delivery issue';
+            reasonSel.options[4].text = 'Other issue';
+        }
+    }
+}
+
+function openReportModal(type = 'general', targetName = '', targetId = '') {
+    reportContext = { type, targetName, targetId };
+    updateReportModalTranslations();
+
+    const targetBox = document.getElementById('report-target-box');
+    const phoneInput = document.getElementById('report-customer-phone');
+    const detailsInput = document.getElementById('report-details');
+
+    if (phoneInput && !phoneInput.value && loggedInUser?.phone) {
+        phoneInput.value = loggedInUser.phone;
+    }
+    if (detailsInput) detailsInput.value = '';
+
+    if (targetBox) {
+        if (targetName) {
+            const label = type === 'product'
+                ? (currentLang === 'ar' ? 'الإبلاغ عن منتج:' : 'Reporting Product:')
+                : (currentLang === 'ar' ? 'الإبلاغ عن متجر:' : 'Reporting Store:');
+            targetBox.innerText = `${label} ${targetName}`;
+            targetBox.classList.remove('hidden');
+        } else {
+            targetBox.innerText = '';
+            targetBox.classList.add('hidden');
+        }
+    }
+
+    updateWhatsAppReportLink();
+    document.getElementById('report-modal')?.classList.remove('hidden');
+}
+
+function closeReportModal() {
+    document.getElementById('report-modal')?.classList.add('hidden');
+}
+
+function updateWhatsAppReportLink() {
+    const linkEl = document.getElementById('whatsapp-report-link');
+    if (!linkEl) return;
+
+    const reasonSel = document.getElementById('report-reason');
+    const reasonText = reasonSel?.options[reasonSel.selectedIndex]?.text || reasonSel?.value || '';
+    const phone = document.getElementById('report-customer-phone')?.value.trim() || loggedInUser?.phone || 'Not provided';
+    const details = document.getElementById('report-details')?.value.trim() || 'No additional details';
+
+    const lines = [
+        'aneeq Customer Report',
+        `Type: ${reportContext.type}`,
+    ];
+    if (reportContext.targetName) lines.push(`Target: ${reportContext.targetName} (${reportContext.targetId})`);
+    lines.push(`Reason: ${reasonText}`);
+    lines.push(`Customer Phone: ${phone}`);
+    if (loggedInUser?.name) lines.push(`Customer Name: ${loggedInUser.name}`);
+    lines.push(`Details: ${details}`);
+
+    linkEl.href = `https://wa.me/${WHATSAPP_REPORT_NUMBER}?text=${encodeURIComponent(lines.join('\n'))}`;
 }
 
 function updateTermsModalTranslations() {
@@ -1408,7 +2069,7 @@ async function submitOrder() {
     try {
         await addDoc(collection(db, "orders"), orderData);
         closeModal();
-        showToast();
+        showToast(TRANSLATIONS[currentLang].toastSent);
         
         // Update user location if it was empty
         if(!loggedInUser.location) {
@@ -1423,14 +2084,15 @@ async function submitOrder() {
     }
 }
 
+let toastHideTimer = null;
 function showToast(message) {
-    const t = document.getElementById('toast');
-    if (message) t.innerText = message;
-    t.classList.remove('hidden');
-    setTimeout(() => {
-        t.classList.add('hidden');
-        // Reset to default message for other uses
-        setTimeout(() => { t.innerText = "Request Sent to Master!"; }, 500);
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.innerText = message || TRANSLATIONS[currentLang]?.toastSent || "Request Sent to Master!";
+    el.classList.remove('hidden');
+    if (toastHideTimer) clearTimeout(toastHideTimer);
+    toastHideTimer = setTimeout(() => {
+        el.classList.add('hidden');
     }, 4000);
 }
 
@@ -1678,7 +2340,7 @@ function loginSuccess() {
         handleBasketAutoTrack();
     }
     
-    showToast();
+    showToast(currentLang === 'ar' ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!');
 }
 
 function updateProfileUI() {
@@ -1704,8 +2366,8 @@ function updateProfileUI() {
         const shop = SHOPS.find(s => s.id === loggedInShopId);
         
         const currentName = settings.name || shop?.name || "My Shop";
-        const logo = settings.logo || shop?.logo || defaultShopLogo;
-        const hero = settings.hero || shop?.hero || defaultShopHero;
+        const logo = settings.pendingLogo || settings.logo || shop?.logo || defaultShopLogo;
+        const hero = settings.pendingHero || settings.hero || shop?.hero || defaultShopHero;
         
         document.getElementById('store-name-input').value = currentName;
         document.getElementById('store-phone-input').value = loggedInUser.phone;
@@ -1716,14 +2378,43 @@ function updateProfileUI() {
         if (lpc) lpc.innerHTML = `<img src="${logo}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
         if (hpc) hpc.innerHTML = `<img src="${hero}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
 
+        const t = TRANSLATIONS[currentLang];
+        const logoStatusEl = document.getElementById('logo-approval-status');
+        if (logoStatusEl) {
+            if (settings.logoStatus === 'pending' && settings.pendingLogo) {
+                logoStatusEl.innerText = t.logoPendingNote;
+                logoStatusEl.className = 'upload-approval-note is-pending';
+            } else if (settings.logoStatus === 'rejected') {
+                logoStatusEl.innerText = t.logoRejectedNote;
+                logoStatusEl.className = 'upload-approval-note is-rejected';
+            } else {
+                logoStatusEl.innerText = '';
+                logoStatusEl.className = 'upload-approval-note hidden';
+            }
+        }
+
+        const heroStatusEl = document.getElementById('hero-approval-status');
+        if (heroStatusEl) {
+            if (settings.heroStatus === 'pending' && settings.pendingHero) {
+                heroStatusEl.innerText = t.heroPendingNote;
+                heroStatusEl.className = 'upload-approval-note is-pending';
+            } else if (settings.heroStatus === 'rejected') {
+                heroStatusEl.innerText = t.heroRejectedNote;
+                heroStatusEl.className = 'upload-approval-note is-rejected';
+            } else {
+                heroStatusEl.innerText = '';
+                heroStatusEl.className = 'upload-approval-note hidden';
+            }
+        }
+
         const removeLogoBtn = document.getElementById('remove-logo-btn');
         const removeHeroBtn = document.getElementById('remove-hero-btn');
         if (removeLogoBtn) {
-            if (settings.logo) removeLogoBtn.classList.remove('hidden');
+            if (settings.logo || settings.pendingLogo) removeLogoBtn.classList.remove('hidden');
             else removeLogoBtn.classList.add('hidden');
         }
         if (removeHeroBtn) {
-            if (settings.hero) removeHeroBtn.classList.remove('hidden');
+            if (settings.hero || settings.pendingHero) removeHeroBtn.classList.remove('hidden');
             else removeHeroBtn.classList.add('hidden');
         }
     } else {
@@ -1818,22 +2509,43 @@ function renderAdminInventory() {
     const q = query(collection(db, "inventory"), where("shopId", "==", loggedInShopId));
     adminInventoryUnsubscribe = onSnapshot(q, (snapshot) => {
         let products = [];
-        snapshot.forEach(doc => products.push({ ...doc.data(), id: doc.id }));
+        snapshot.forEach(docSnap => {
+            const item = { ...docSnap.data(), id: docSnap.id };
+            PRODUCT_CACHE[item.id] = item;
+            products.push(item);
+        });
 
-        list.innerHTML = products.map((p) => `
+        list.innerHTML = products.map((p) => {
+            const statuses = getProductPhotoStatuses(p);
+            const approvedCount = statuses.filter(s => s === 'approved').length;
+            const pendingCount = statuses.filter(s => s === 'pending').length;
+            let statusCls = 'is-approved';
+            let statusText = t.approvedLabel;
+            if (pendingCount > 0 && approvedCount === 0) {
+                statusCls = 'is-pending';
+                statusText = `${t.pendingLabel} (${pendingCount})`;
+            } else if (pendingCount > 0 && approvedCount > 0) {
+                statusCls = 'is-pending';
+                statusText = `${approvedCount}/${statuses.length} ${t.approvedLabel} · ${pendingCount} ${t.pendingLabel}`;
+            } else if (approvedCount === 0) {
+                statusCls = 'is-rejected';
+                statusText = t.rejectedLabel;
+            }
+            return `
             <div style="display:flex; align-items:center; gap: 14px; padding:14px 0; border-bottom:1px solid #E5EBF3;">
-                <img src="${p.image || defaultShopHero}" style="width:48px; height:48px; border-radius:12px; object-fit:cover; border: 1px solid #E5EBF3;" onerror="this.src='${defaultShopHero}'">
+                <img src="${p.image || defaultShopHero}" onclick="openBuyModal('${p.id}', true)" style="width:48px; height:48px; border-radius:12px; object-fit:cover; border: 1px solid #E5EBF3; cursor:pointer;" onerror="this.src='${defaultShopHero}'">
                 <div style="flex:1; min-width:0;">
-                    <div style="font-weight:700; font-size:14px; color:#1E293B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
+                    <div style="font-weight:700; font-size:14px; color:#1E293B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
                     <div style="font-size:13px; color:#2563EB; font-weight:700; font-variant-numeric:tabular-nums;">${Number(p.price || 0).toLocaleString()} د.ع</div>
-                    ${(p.tags && p.tags.length) ? `<div style="font-size:11px; color:#64748B; margin-top:2px;">${p.tags.join(' · ')}</div>` : ''}
+                    <div class="inv-approval-status ${statusCls}">${statusText}</div>
+                    ${(p.tags && p.tags.length) ? `<div style="font-size:11px; color:#64748B; margin-top:2px;">${p.tags.map(tag => escapeHtml(tag)).join(' · ')}</div>` : ''}
                 </div>
                 <div style="display: flex; gap: 8px;">
                     <button onclick="editProduct('${p.id}')" style="color:#1D4ED8; border:1px solid #BFDBFE; background:#EFF6FF; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px; padding: 6px 12px;">${t.edit}</button>
                     <button onclick="deleteProduct('${p.id}')" style="color:#EF4444; border:1px solid #FEE2E2; background:#FEF2F2; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px; padding: 6px 12px;">${t.delete}</button>
                 </div>
             </div>
-        `).join('') || `<p style="color:#64748B; text-align:center; padding:36px;">${t.noProducts}</p>`;
+        `}).join('') || `<p style="color:#64748B; text-align:center; padding:36px;">${t.noProducts}</p>`;
     }, (error) => {
         handleFirestoreError(error, OperationType.GET, "inventory");
     });
@@ -2032,8 +2744,27 @@ async function saveStoreSettings() {
             updatedAt: serverTimestamp()
         };
         if (newName) updateData.name = newName;
-        if (currentStoreLogo !== null) updateData.logo = currentStoreLogo;
-        if (currentStoreHero !== null) updateData.hero = currentStoreHero;
+        let hasPendingPhotoUpload = false;
+
+        if (currentStoreLogo === "") {
+            updateData.logo = "";
+            updateData.pendingLogo = "";
+            updateData.logoStatus = "approved";
+        } else if (currentStoreLogo) {
+            updateData.pendingLogo = currentStoreLogo;
+            updateData.logoStatus = "pending";
+            hasPendingPhotoUpload = true;
+        }
+
+        if (currentStoreHero === "") {
+            updateData.hero = "";
+            updateData.pendingHero = "";
+            updateData.heroStatus = "approved";
+        } else if (currentStoreHero) {
+            updateData.pendingHero = currentStoreHero;
+            updateData.heroStatus = "pending";
+            hasPendingPhotoUpload = true;
+        }
         
         // Update user profile in Firestore
         const oldPhone = loggedInUser.phone;
@@ -2076,19 +2807,18 @@ async function saveStoreSettings() {
         const shopIdx = SHOPS.findIndex(s => s.id === loggedInShopId);
         if (shopIdx !== -1) {
             SHOPS[shopIdx].name = newName || SHOPS[shopIdx].name;
-            if (currentStoreLogo) SHOPS[shopIdx].logo = currentStoreLogo;
-            if (currentStoreHero) SHOPS[shopIdx].hero = currentStoreHero;
+            if (currentStoreLogo === "") SHOPS[shopIdx].logo = defaultShopLogo;
+            if (currentStoreHero === "") SHOPS[shopIdx].hero = defaultShopHero;
             SHOPS[shopIdx].phone = loggedInUser.phone;
             SHOPS[shopIdx].pass = loggedInUser.password;
         }
 
-        showToast(currentLang === 'ar' ? 'تم تحديث الإعدادات!' : "Store settings updated!");
+        const t = TRANSLATIONS[currentLang];
+        showToast(hasPendingPhotoUpload
+            ? t.settingsSavedApproval
+            : (currentLang === 'ar' ? 'تم تحديث الإعدادات!' : "Store settings updated!"));
         currentStoreLogo = null;
         currentStoreHero = null;
-        const lpc = document.getElementById('logo-preview-container');
-        const hpc = document.getElementById('hero-preview-container');
-        if (lpc) lpc.innerHTML = '';
-        if (hpc) hpc.innerHTML = '';
         
         updateProfileUI();
     } catch (e) {
@@ -2204,6 +2934,8 @@ async function addNewProduct() {
         tags: currentProductTags,
         image: imgs[0], // primary image
         images: imgs,   // full gallery
+        photoStatuses: imgs.map(() => 'pending'),
+        photoStatus: 'pending',
         shopId: loggedInShopId,
         createdAt: serverTimestamp()
     };
@@ -2218,7 +2950,7 @@ async function addNewProduct() {
         renderTagPills('new');
         document.getElementById('product-preview').innerHTML = '';
         currentBase64Images = [];
-        showToast(currentLang === 'ar' ? "تمت إضافة المنتج!" : "Product Added!");
+        showToast(t.pendingApprovalMsg);
     } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, "inventory");
     }
@@ -2462,35 +3194,271 @@ function renderMasterOrders() {
 
 // MASTER ACTIONS
 function switchMasterTab(tab) {
+    currentMasterTab = tab;
     const ordersTab = document.getElementById('master-tab-orders');
     const shopsTab = document.getElementById('master-tab-shops');
+    const approvalsTab = document.getElementById('master-tab-approvals');
     const ordersView = document.getElementById('master-orders-view');
     const shopsView = document.getElementById('master-shops-view');
-    
-    if (tab === 'orders') {
-        ordersTab.style.fontWeight = '700';
-        ordersTab.style.borderBottom = '2px solid #2563EB';
-        ordersTab.style.color = '#FFFFFF';
-        
-        shopsTab.style.fontWeight = '500';
-        shopsTab.style.borderBottom = 'none';
-        shopsTab.style.color = '#94A3B8';
-        
-        ordersView.classList.remove('hidden');
-        shopsView.classList.add('hidden');
-        renderMasterOrders();
-    } else {
-        shopsTab.style.fontWeight = '700';
-        shopsTab.style.borderBottom = '2px solid #2563EB';
-        shopsTab.style.color = '#FFFFFF';
-        
-        ordersTab.style.fontWeight = '500';
-        ordersTab.style.borderBottom = 'none';
-        ordersTab.style.color = '#94A3B8';
-        
-        shopsView.classList.remove('hidden');
-        ordersView.classList.add('hidden');
-        renderMasterShops();
+    const approvalsView = document.getElementById('master-approvals-view');
+
+    const tabs = [
+        { key: 'orders', btn: ordersTab, view: ordersView },
+        { key: 'shops', btn: shopsTab, view: shopsView },
+        { key: 'approvals', btn: approvalsTab, view: approvalsView },
+    ];
+
+    tabs.forEach(({ key, btn, view }) => {
+        const isActive = key === tab;
+        if (btn) {
+            btn.style.fontWeight = isActive ? '700' : '500';
+            btn.style.borderBottom = isActive ? '2px solid #2563EB' : 'none';
+            btn.style.color = isActive ? '#FFFFFF' : '#94A3B8';
+        }
+        if (view) {
+            view.classList.toggle('hidden', !isActive);
+        }
+    });
+
+    if (tab === 'orders') renderMasterOrders();
+    else if (tab === 'shops') renderMasterShops();
+    else if (tab === 'approvals') renderMasterApprovals();
+}
+
+function setApprovalsFilter(filter) {
+    currentApprovalsFilter = filter;
+    document.getElementById('approvals-filter-pending')?.classList.toggle('active', filter === 'pending');
+    document.getElementById('approvals-filter-all')?.classList.toggle('active', filter === 'all');
+    renderMasterApprovals();
+}
+
+function getPendingApprovalCount() {
+    let count = 0;
+    Object.values(shopSettingsOverrides).forEach(s => {
+        if (s.pendingLogo && s.logoStatus === 'pending') count += 1;
+        if (s.pendingHero && s.heroStatus === 'pending') count += 1;
+    });
+    MARKET_PRODUCTS.forEach(p => {
+        const statuses = getProductPhotoStatuses(p);
+        count += statuses.filter(st => st === 'pending').length;
+    });
+    return count;
+}
+
+function updateApprovalsBadge() {
+    const badge = document.getElementById('approvals-pending-badge');
+    if (!badge) return;
+    const count = getPendingApprovalCount();
+    badge.innerText = String(count);
+    badge.classList.toggle('hidden', count === 0);
+}
+
+function renderMasterApprovals() {
+    const list = document.getElementById('master-approvals-list');
+    if (!list) return;
+    const t = TRANSLATIONS[currentLang];
+    updateApprovalsBadge();
+
+    const cards = [];
+
+    // 1. Store Logo & Hero Banner uploads
+    Object.values(shopSettingsOverrides).forEach(s => {
+        const shopId = s.shopId;
+        const shopName = s.name || SHOPS.find(sh => sh.id === shopId)?.name || shopId;
+        const storePhotos = [];
+
+        if (s.pendingLogo && s.logoStatus === 'pending') {
+            storePhotos.push({ kind: 'logo', label: t.storeLogoType, src: s.pendingLogo, status: 'pending' });
+        } else if (currentApprovalsFilter === 'all' && (s.logo || s.logoStatus === 'rejected')) {
+            if (s.logo) storePhotos.push({ kind: 'logo', label: t.storeLogoType, src: s.logo, status: s.logoStatus || 'approved' });
+        }
+
+        if (s.pendingHero && s.heroStatus === 'pending') {
+            storePhotos.push({ kind: 'hero', label: t.storeHeroType, src: s.pendingHero, status: 'pending' });
+        } else if (currentApprovalsFilter === 'all' && (s.hero || s.heroStatus === 'rejected')) {
+            if (s.hero) storePhotos.push({ kind: 'hero', label: t.storeHeroType, src: s.hero, status: s.heroStatus || 'approved' });
+        }
+
+        if (storePhotos.length > 0) {
+            cards.push(`
+                <div class="approval-card">
+                    <div class="approval-card-header">
+                        <div>
+                            <h4 style="margin:0; font-size:16px; font-weight:800; color:#1E293B;">${escapeHtml(shopName)}</h4>
+                            <div style="font-size:12px; color:#64748B; margin-top:2px;">ID: ${escapeHtml(shopId)}</div>
+                        </div>
+                    </div>
+                    <div class="approval-photos-grid">
+                        ${storePhotos.map(item => `
+                            <div class="approval-photo-tile">
+                                <div class="approval-photo-thumb ${item.kind === 'hero' ? 'is-hero' : ''}" onclick="zoomImage('${item.src}')">
+                                    <img src="${item.src}" alt="${escapeHtml(item.label)}">
+                                </div>
+                                <div class="approval-photo-meta">
+                                    <div style="font-size:12px; font-weight:700; color:#1E293B;">${item.label}</div>
+                                    <div class="approval-status-text is-${item.status}">${item.status === 'pending' ? t.pendingLabel : (item.status === 'approved' ? t.approvedLabel : t.rejectedLabel)}</div>
+                                    <div class="approval-photo-actions">
+                                        ${item.status !== 'approved' ? `<button type="button" class="btn-approve-photo" onclick="approveShopPhoto('${shopId}', '${item.kind}')">${t.approveBtn}</button>` : ''}
+                                        ${item.status !== 'rejected' ? `<button type="button" class="btn-reject-photo" onclick="rejectShopPhoto('${shopId}', '${item.kind}')">${t.rejectBtn}</button>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `);
+        }
+    });
+
+    // 2. Product photos
+    MARKET_PRODUCTS.forEach(p => {
+        const imgs = getProductAllImages(p);
+        if (imgs.length === 0) return;
+        const statuses = getProductPhotoStatuses(p);
+        const hasPending = statuses.some(st => st === 'pending');
+
+        if (currentApprovalsFilter === 'pending' && !hasPending) return;
+
+        const shopName = shopSettingsOverrides[p.shopId]?.name || SHOPS.find(s => s.id === p.shopId)?.name || p.shopId;
+        const tilesToRender = imgs.map((img, idx) => ({ img, idx, status: statuses[idx] }))
+            .filter(item => currentApprovalsFilter === 'all' || item.status === 'pending');
+
+        if (tilesToRender.length === 0) return;
+
+        cards.push(`
+            <div class="approval-card">
+                <div class="approval-card-header">
+                    <div>
+                        <h4 style="margin:0; font-size:16px; font-weight:800; color:#1E293B;">${escapeHtml(p.name)}</h4>
+                        <div style="font-size:12px; color:#64748B; margin-top:3px;">${escapeHtml(shopName)} · ${Number(p.price || 0).toLocaleString()} د.ع</div>
+                    </div>
+                    ${hasPending ? `<button type="button" class="btn-approve-photo" style="flex:none; padding:8px 14px;" onclick="approveAllProductPhotos('${p.id}')">${t.approveAllBtn}</button>` : ''}
+                </div>
+                <div class="approval-photos-grid">
+                    ${tilesToRender.map(item => `
+                        <div class="approval-photo-tile">
+                            <div class="approval-photo-thumb" onclick="zoomImage('${item.img}')">
+                                <img src="${item.img}" alt="${escapeHtml(p.name)}">
+                            </div>
+                            <div class="approval-photo-meta">
+                                <div class="approval-status-text is-${item.status}">${item.status === 'pending' ? t.pendingLabel : (item.status === 'approved' ? t.approvedLabel : t.rejectedLabel)}</div>
+                                <div class="approval-photo-actions">
+                                    ${item.status !== 'approved' ? `<button type="button" class="btn-approve-photo" onclick="approveProductPhoto('${p.id}', ${item.idx})">${t.approveBtn}</button>` : ''}
+                                    ${item.status !== 'rejected' ? `<button type="button" class="btn-reject-photo" onclick="rejectProductPhoto('${p.id}', ${item.idx})">${t.rejectBtn}</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `);
+    });
+
+    if (cards.length === 0) {
+        list.innerHTML = `<div style="text-align: center; color: #64748B; padding: 40px; background:#FFFFFF; border:1px solid #E5EBF3; border-radius:18px;">${currentApprovalsFilter === 'pending' ? t.noPendingApprovals : t.noApprovalsFound}</div>`;
+        return;
+    }
+
+    list.innerHTML = cards.join('');
+}
+
+async function setProductPhotoDecision(productId, photoIdx, decision) {
+    if (!db) return;
+    const p = PRODUCT_CACHE[productId] || MARKET_PRODUCTS.find(item => item.id === productId);
+    if (!p) return;
+
+    const imgs = getProductAllImages(p);
+    const statuses = [...getProductPhotoStatuses(p)];
+    statuses[photoIdx] = decision;
+
+    const approvedIdx = statuses.findIndex(st => st === 'approved');
+    const overallStatus = approvedIdx !== -1
+        ? 'approved'
+        : (statuses.some(st => st === 'pending') ? 'pending' : 'rejected');
+
+    const updatePayload = {
+        photoStatuses: statuses,
+        photoStatus: overallStatus,
+        updatedAt: serverTimestamp()
+    };
+    if (approvedIdx !== -1 && imgs[approvedIdx]) {
+        updatePayload.image = imgs[approvedIdx];
+    }
+
+    try {
+        await updateDoc(doc(db, "inventory", productId), updatePayload);
+        showToast(decision === 'approved'
+            ? (currentLang === 'ar' ? 'تمت الموافقة على الصورة!' : 'Photo approved & published!')
+            : (currentLang === 'ar' ? 'تم رفض الصورة.' : 'Photo rejected.'));
+    } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `inventory/${productId}`);
+    }
+}
+
+function approveProductPhoto(productId, photoIdx) {
+    return setProductPhotoDecision(productId, photoIdx, 'approved');
+}
+
+function rejectProductPhoto(productId, photoIdx) {
+    return setProductPhotoDecision(productId, photoIdx, 'rejected');
+}
+
+async function approveAllProductPhotos(productId) {
+    if (!db) return;
+    const p = PRODUCT_CACHE[productId] || MARKET_PRODUCTS.find(item => item.id === productId);
+    if (!p) return;
+    const imgs = getProductAllImages(p);
+    const statuses = imgs.map(() => 'approved');
+    try {
+        await updateDoc(doc(db, "inventory", productId), {
+            photoStatuses: statuses,
+            photoStatus: 'approved',
+            image: imgs[0] || p.image || '',
+            updatedAt: serverTimestamp()
+        });
+        showToast(currentLang === 'ar' ? 'تمت الموافقة على جميع الصور!' : 'All photos approved & published!');
+    } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `inventory/${productId}`);
+    }
+}
+
+async function approveShopPhoto(shopId, kind) {
+    if (!db) return;
+    const settings = shopSettingsOverrides[shopId];
+    if (!settings) return;
+    const updatePayload = { updatedAt: serverTimestamp() };
+    if (kind === 'logo' && settings.pendingLogo) {
+        updatePayload.logo = settings.pendingLogo;
+        updatePayload.pendingLogo = '';
+        updatePayload.logoStatus = 'approved';
+    } else if (kind === 'hero' && settings.pendingHero) {
+        updatePayload.hero = settings.pendingHero;
+        updatePayload.pendingHero = '';
+        updatePayload.heroStatus = 'approved';
+    }
+    try {
+        await setDoc(doc(db, "shop_settings", shopId), updatePayload, { merge: true });
+        showToast(currentLang === 'ar' ? 'تمت الموافقة على صورة المتجر!' : 'Store photo approved & published!');
+    } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `shop_settings/${shopId}`);
+    }
+}
+
+async function rejectShopPhoto(shopId, kind) {
+    if (!db) return;
+    const updatePayload = { updatedAt: serverTimestamp() };
+    if (kind === 'logo') {
+        updatePayload.pendingLogo = '';
+        updatePayload.logoStatus = 'rejected';
+    } else if (kind === 'hero') {
+        updatePayload.pendingHero = '';
+        updatePayload.heroStatus = 'rejected';
+    }
+    try {
+        await setDoc(doc(db, "shop_settings", shopId), updatePayload, { merge: true });
+        showToast(currentLang === 'ar' ? 'تم رفض صورة المتجر.' : 'Store photo rejected.');
+    } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `shop_settings/${shopId}`);
     }
 }
 
@@ -2700,12 +3668,20 @@ async function saveMasterShop() {
         if (mode === 'add') {
             shopSettingsData.logo = currentMasterShopLogo || defaultShopLogo;
             shopSettingsData.hero = currentMasterHero || defaultShopHero;
+            shopSettingsData.logoStatus = 'approved';
+            shopSettingsData.heroStatus = 'approved';
+            shopSettingsData.pendingLogo = '';
+            shopSettingsData.pendingHero = '';
         } else {
             if (currentMasterShopLogo) {
                 shopSettingsData.logo = currentMasterShopLogo;
+                shopSettingsData.logoStatus = 'approved';
+                shopSettingsData.pendingLogo = '';
             }
             if (currentMasterHero) {
                 shopSettingsData.hero = currentMasterHero;
+                shopSettingsData.heroStatus = 'approved';
+                shopSettingsData.pendingHero = '';
             }
         }
 

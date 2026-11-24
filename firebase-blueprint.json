@@ -8,7 +8,16 @@
         "name": { "type": "string" },
         "category": { "type": "string" },
         "price": { "type": "number" },
-        "image": { "type": "string", "description": "Base64 image string" },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "image": { "type": "string", "description": "Primary Base64 image string" },
+        "images": { "type": "array", "items": { "type": "string" }, "description": "Product gallery Base64 images" },
+        "photoStatuses": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+          "description": "Per-photo Master approval statuses"
+        },
+        "photoStatus": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "shopId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
@@ -55,9 +64,29 @@
       "properties": {
         "shopId": { "type": "string" },
         "name": { "type": "string" },
-        "hero": { "type": "string", "description": "Base64 hero image" },
+        "logo": { "type": "string", "description": "Approved Base64 store logo" },
+        "hero": { "type": "string", "description": "Approved Base64 hero image" },
+        "pendingLogo": { "type": "string", "description": "Pending Base64 store logo awaiting Master approval" },
+        "logoStatus": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "pendingHero": { "type": "string", "description": "Pending Base64 hero image awaiting Master approval" },
+        "heroStatus": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer star rating and comment for a product.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "shopId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "userId", "userName", "rating", "comment"]
     }
   },
   "firestore": {
@@ -76,6 +105,10 @@
     "/shop_settings/{shopId}": {
       "schema": "ShopSettings",
       "description": "Customized shop headers and names."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Customer star ratings and product comments."
     }
   }
 }
